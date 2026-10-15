@@ -24,16 +24,28 @@ export type BlockType =
   | 'table'
   | 'divider'
   | 'subpage'
+  | 'link-to-page'
   | 'bookmark'
+  | 'webview'
   | 'youtube'
   | 'equation'
   | 'html'
   | 'code'
+  | 'timeline'
+  | 'image'
   | 'toc';
 
 export interface TableData {
   headers: string[];
   rows: string[][];
+}
+
+export interface TimelineEvent {
+  id: string;
+  date: string;
+  title: string;
+  description: string;
+  status: 'completed' | 'in-progress' | 'planned';
 }
 
 export interface BlockItem {
@@ -47,7 +59,11 @@ export interface BlockItem {
   calloutColor?: string;
   tableData?: TableData;
   subpageId?: string;
+  linkedNoteId?: string;
   url?: string;
+  imageUrl?: string;
+  imageCaption?: string;
+  timelineEvents?: TimelineEvent[];
   language?: string;
   align?: 'left' | 'center' | 'right';
   textColor?: string;
@@ -69,12 +85,13 @@ export type ConnectorType = 'straight' | 'arrow' | 'double-arrow' | 'curved';
 
 export interface CanvasElement {
   id: string;
-  type: 'text' | 'shape' | 'connector' | 'drawing' | 'mindmap-node';
+  type: 'text' | 'shape' | 'connector' | 'drawing' | 'mindmap-node' | 'image';
   x: number;
   y: number;
   width: number;
   height: number;
   content?: string;
+  imageUrl?: string;
   shapeType?: ShapeType;
   fillColor?: string;
   strokeColor?: string;
@@ -101,6 +118,11 @@ export interface NoteItem {
   id: string;
   title: string;
   folderId?: string;
+  notebookId?: string;
+  unitId?: string;
+  chapterId?: string;
+  isSubpage?: boolean;
+  parentPageId?: string;
   isPinned: boolean;
   isArchived: boolean;
   isDeleted: boolean;
@@ -110,7 +132,7 @@ export interface NoteItem {
   pageColor?: string; // Page background
   fontFamily: FontStyle;
   fontSize: number;
-  viewMode: 'document' | 'canvas' | 'both';
+  viewMode: 'document' | 'canvas' | 'timeline' | 'both';
   blocks: BlockItem[];
   canvasElements: CanvasElement[];
   reminder?: Reminder | null;

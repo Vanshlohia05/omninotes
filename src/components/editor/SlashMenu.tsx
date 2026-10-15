@@ -16,7 +16,11 @@ import {
   Bookmark,
   Video,
   Sigma,
-  Code
+  Code,
+  Calendar,
+  Link as LinkIcon,
+  Globe,
+  Image as ImageIcon
 } from 'lucide-react';
 import { BlockType } from '../../types/note';
 
@@ -39,12 +43,16 @@ export const SLASH_COMMANDS: SlashMenuItem[] = [
   { type: 'callout', title: 'Callout', description: 'Highlight important info in a box', icon: <MessageSquare className="w-4 h-4 text-yellow-500" /> },
   { type: 'quote', title: 'Quote', description: 'Capture a quote or reference', icon: <Quote className="w-4 h-4 text-slate-500" /> },
   { type: 'table', title: 'Table', description: 'Interactive Notion-style table', icon: <TableIcon className="w-4 h-4 text-purple-500" /> },
-  { type: 'divider', title: 'Divider', description: 'Visually divide sections', icon: <Minus className="w-4 h-4 text-slate-400" /> },
-  { type: 'subpage', title: 'Sub-page', description: 'Embed a child page inside this page', icon: <FileText className="w-4 h-4 text-indigo-500" /> },
+  { type: 'timeline', title: 'Timeline View', description: 'Interactive chronological events & milestones', icon: <Calendar className="w-4 h-4 text-emerald-600" /> },
+  { type: 'link-to-page', title: 'Link to Page', description: 'Link directly to an existing note in vault', icon: <LinkIcon className="w-4 h-4 text-blue-600" /> },
+  { type: 'image', title: 'Image', description: 'Upload or paste image URL', icon: <ImageIcon className="w-4 h-4 text-pink-500" /> },
+  { type: 'webview', title: 'Web View', description: 'Embed interactive live web preview iframe', icon: <Globe className="w-4 h-4 text-cyan-500" /> },
+  { type: 'bookmark', title: 'Web Bookmark', description: 'Visual link card preview', icon: <Bookmark className="w-4 h-4 text-sky-500" /> },
+  { type: 'youtube', title: 'YouTube Embed', description: 'Embed a video from YouTube', icon: <Video className="w-4 h-4 text-red-600" /> },
   { type: 'equation', title: 'Math Equation', description: 'KaTeX LaTeX mathematical formula', icon: <Sigma className="w-4 h-4 text-red-500" /> },
   { type: 'code', title: 'Code Block', description: 'Syntax-highlighted code snippet', icon: <Code className="w-4 h-4 text-emerald-600" /> },
-  { type: 'bookmark', title: 'Web Bookmark', description: 'Visual link card preview', icon: <Bookmark className="w-4 h-4 text-sky-500" /> },
-  { type: 'youtube', title: 'YouTube Embed', description: 'Embed a video from YouTube', icon: <Video className="w-4 h-4 text-red-600" /> }
+  { type: 'divider', title: 'Divider', description: 'Visually divide sections', icon: <Minus className="w-4 h-4 text-slate-400" /> },
+  { type: 'subpage', title: 'Sub-page', description: 'Embed a child page inside this page', icon: <FileText className="w-4 h-4 text-indigo-500" /> }
 ];
 
 interface SlashMenuProps {
@@ -97,8 +105,8 @@ export const SlashMenu: React.FC<SlashMenuProps> = ({ query, onSelect, onClose, 
     <div
       ref={menuRef}
       style={{
-        top: `${Math.min(position.top, window.innerHeight - 320)}px`,
-        left: `${Math.min(position.left, window.innerWidth - 300)}px`
+        top: `${Math.max(16, Math.min(position.top, window.innerHeight - 340))}px`,
+        left: `${Math.max(12, Math.min(position.left, window.innerWidth - 300))}px`
       }}
       className="fixed z-50 w-72 max-h-80 overflow-y-auto bg-white/95 dark:bg-[#252525]/95 backdrop-blur-md rounded-xl shadow-apple-floating border border-black/10 dark:border-white/10 p-1.5 scrollbar-thin animate-in fade-in zoom-in-95 duration-100"
     >

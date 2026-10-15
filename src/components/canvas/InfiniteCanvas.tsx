@@ -22,6 +22,7 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({ note, onChange }
     startPanX: 0,
     startPanY: 0
   });
+  const copiedElementRef = useRef<CanvasElement | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const elements = note.canvasElements || [];
@@ -60,6 +61,32 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({ note, onChange }
       if (e.code === 'Space' && (e.target as HTMLElement).tagName !== 'TEXTAREA' && (e.target as HTMLElement).tagName !== 'INPUT') {
         setIsSpaceDown(true);
       }
+
+      // Easy copy paste for canvas (Ctrl+C / Ctrl+V or Cmd+C / Cmd+V)
+      if ((e.ctrlKey || e.metaKey) && (e.target as HTMLElement).tagName !== 'TEXTAREA' && (e.target as HTMLElement).tagName !== 'INPUT') {
+        if (e.key.toLowerCase() === 'c') {
+          const target = elements.find((el) => el.id === selectedId);
+          if (target) {
+            copiedElementRef.current = target;
+          }
+        } else if (e.key.toLowerCase() === 'v') {
+          if (copiedElementRef.current) {
+            e.preventDefault();
+            const src = copiedElementRef.current;
+            const newId = `${src.type}-${Date.now()}`;
+            const cloned: CanvasElement = {
+              ...src,
+              id: newId,
+              x: src.x + 40,
+              y: src.y + 40,
+              childrenIds: undefined,
+              parentId: undefined
+            };
+            onChange([...elements, cloned]);
+            setSelectedId(newId);
+          }
+        }
+      }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
@@ -72,7 +99,26 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({ note, onChange }
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, []);
+  }, [elements, selectedId, onChange]);
+
+  const handleAddImage = (imageUrl: string) => {
+    const centerWorldX = Math.round((-pan.x + window.innerWidth / 2) / scale - 120);
+    const centerWorldY = Math.round((-pan.y + window.innerHeight / 2) / scale - 90);
+
+    const newImageEl: CanvasElement = {
+      id: `img-${Date.now()}`,
+      type: 'image',
+      x: centerWorldX,
+      y: centerWorldY,
+      width: 240,
+      height: 180,
+      imageUrl,
+      content: 'Canvas diagram'
+    };
+
+    onChange([...elements, newImageEl]);
+    setSelectedId(newImageEl.id);
+  };
 
   // Pan interaction
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -367,10 +413,11 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({ note, onChange }
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className={`relative w-full h-[calc(100vh-140px)] min-h-[500px] overflow-hidden select-none bg-slate-50 dark:bg-[#191919] ${
+      className={`relative w-full h-full min-h-[350px] overflow-hidden select-none bg-slate-50 dark:bg-[#191919] touch-none ${
         tool === 'hand' || isPanning ? 'cursor-grab active:cursor-grabbing' : tool === 'text' ? 'cursor-text' : ''
       }`}
       style={{
+        touchAction: 'none',
         backgroundImage: 'radial-gradient(rgba(0, 0, 0, 0.12) 1px, transparent 1px)',
         backgroundSize: `${24 * scale}px ${24 * scale}px`,
         backgroundPosition: `${pan.x}px ${pan.y}px`
@@ -383,6 +430,7 @@ export const InfiniteCanvas: React.FC<InfiniteCanvasProps> = ({ note, onChange }
         onAddShape={handleAddShape}
         onAddMindMapNode={handleAddMindMapNode}
         onAddConnector={handleAddConnector}
+        onAddImage={handleAddImage}
         scale={scale}
         onZoomIn={() => setScale((s) => Math.min(s * 1.2, 4.0))}
         onZoomOut={() => setScale((s) => Math.max(s * 0.8, 0.25))}

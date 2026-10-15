@@ -242,34 +242,52 @@ export const ShapeElement: React.FC<ShapeElementProps> = ({
         isSelected ? 'ring-2 ring-amber-500 shadow-apple-floating z-20' : 'hover:shadow-md z-10'
       }`}
     >
-      <svg className="w-full h-full overflow-visible drop-shadow-sm pointer-events-none">
-        {renderShapeGeometry()}
-      </svg>
-
-      {/* Content / Text editing */}
-      <div className="absolute inset-0 flex items-center justify-center p-2 text-center pointer-events-auto">
-        {isEditing ? (
-          <textarea
-            autoFocus
-            rows={2}
-            value={element.content || ''}
-            onChange={(e) => onUpdate({ ...element, content: e.target.value })}
-            onBlur={() => setIsEditing(false)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setIsEditing(false);
-            }}
-            className="w-full h-full resize-none bg-transparent text-center focus:outline-none text-slate-800 dark:text-slate-100 font-medium"
-            style={{ fontSize: `${element.fontSize || 14}px` }}
+      {/* Render Image Element if type is image */}
+      {element.type === 'image' && element.imageUrl ? (
+        <div className="w-full h-full rounded-xl overflow-hidden border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-800 shadow-sm flex flex-col pointer-events-auto">
+          <img
+            src={element.imageUrl}
+            alt={element.content || 'Canvas image'}
+            className="w-full flex-1 object-cover pointer-events-none select-none"
           />
-        ) : (
-          <div
-            className="w-full font-medium text-slate-800 dark:text-slate-100 break-words whitespace-pre-wrap leading-tight select-none"
-            style={{ fontSize: `${element.fontSize || 14}px` }}
-          >
-            {element.content || 'Double click to edit'}
+          {element.content && (
+            <div className="p-1 text-[11px] text-center text-slate-600 dark:text-slate-300 bg-white/90 dark:bg-neutral-900/90 truncate">
+              {element.content}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <svg className="w-full h-full overflow-visible drop-shadow-sm pointer-events-none">
+            {renderShapeGeometry()}
+          </svg>
+
+          {/* Content / Text editing */}
+          <div className="absolute inset-0 flex items-center justify-center p-2 text-center pointer-events-auto">
+            {isEditing ? (
+              <textarea
+                autoFocus
+                rows={2}
+                value={element.content || ''}
+                onChange={(e) => onUpdate({ ...element, content: e.target.value })}
+                onBlur={() => setIsEditing(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setIsEditing(false);
+                }}
+                className="w-full h-full resize-none bg-transparent text-center focus:outline-none text-slate-800 dark:text-slate-100 font-medium"
+                style={{ fontSize: `${element.fontSize || 14}px` }}
+              />
+            ) : (
+              <div
+                className="w-full font-medium text-slate-800 dark:text-slate-100 break-words whitespace-pre-wrap leading-tight select-none"
+                style={{ fontSize: `${element.fontSize || 14}px` }}
+              >
+                {element.content || 'Double click to edit'}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* Mind map hint pills when selected */}
       {isSelected && (
@@ -277,6 +295,8 @@ export const ShapeElement: React.FC<ShapeElementProps> = ({
           <span>Tab: Child</span>
           <span>•</span>
           <span>Enter: Sibling</span>
+          <span>•</span>
+          <span>Ctrl+C/V: Copy</span>
         </div>
       )}
     </div>

@@ -124,6 +124,56 @@ export const INITIAL_NOTES: NoteItem[] = [
             ['Cross-Device Phone Sync', 'Google Drive PWA', 'Ready 🚀']
           ]
         }
+      },
+      {
+        id: 'b14',
+        type: 'h3',
+        content: 'Interactive Timeline View'
+      },
+      {
+        id: 'b15',
+        type: 'timeline',
+        content: 'Project Milestones',
+        timelineEvents: [
+          {
+            id: 'ev-1',
+            date: '2026-10-10',
+            title: 'Concept & System Design',
+            description: 'Unified Apple Notes, Notion, OneNote, and Keep.',
+            status: 'completed'
+          },
+          {
+            id: 'ev-2',
+            date: '2026-10-14',
+            title: 'Core Engine & Canvas Inking',
+            description: 'Infinite spatial canvas with mind maps and GIS OAuth.',
+            status: 'in-progress'
+          },
+          {
+            id: 'ev-3',
+            date: '2026-10-20',
+            title: 'Cross-Device Phone Rollout',
+            description: 'Full PWA installation on iOS Safari and Android Chrome.',
+            status: 'planned'
+          }
+        ]
+      },
+      {
+        id: 'b16',
+        type: 'h3',
+        content: 'Notion Link-to-Page & Web View'
+      },
+      {
+        id: 'b17',
+        type: 'link-to-page',
+        content: 'Direct Link to Mind Map Canvas',
+        linkedNoteId: 'note-mindmap'
+      },
+      {
+        id: 'b18',
+        type: 'webview',
+        content: 'Live Interactive Web Embed',
+        url: 'https://en.wikipedia.org/wiki/Note-taking'
       }
     ],
     canvasElements: []
@@ -364,5 +414,194 @@ export const INITIAL_NOTES: NoteItem[] = [
       }
     ],
     canvasElements: []
+  },
+  {
+    id: 'note-on-arrays',
+    title: 'Vectors, Dynamic Arrays & Hash Collisions',
+    notebookId: 'nb-cs',
+    unitId: 'unit-dsa',
+    chapterId: 'chap-arrays',
+    isPinned: false,
+    isArchived: false,
+    isDeleted: false,
+    tags: ['dsa', 'algorithms', 'cs'],
+    fontFamily: 'sans',
+    fontSize: 16,
+    viewMode: 'document',
+    createdAt: Date.now() - 86400000 * 2,
+    updatedAt: Date.now() - 86400000 * 2,
+    blocks: [
+      { id: 'b-nb-1', type: 'h1', content: 'Vectors, Dynamic Arrays & Hash Collisions' },
+      { id: 'b-nb-2', type: 'paragraph', content: 'In OneNote section style, this page explores amortized time complexity and bucket hash probing techniques.' },
+      { id: 'b-nb-3', type: 'callout', content: 'Amortized Complexity: Doubling vector capacity on overflow yields O(1) amortized insertion cost across N elements.', calloutColor: '#EDE9FE', calloutIcon: '💡' },
+      { id: 'b-nb-4', type: 'equation', content: 'T_{amortized} = \\frac{\\sum_{i=1}^N c_i}{N} = O(1)' },
+      {
+        id: 'b-nb-5',
+        type: 'table',
+        content: '',
+        tableData: {
+          headers: ['Operation', 'Dynamic Array', 'Linked List', 'Hash Table'],
+          rows: [
+            ['Random Access', 'O(1)', 'O(N)', 'O(1) avg'],
+            ['Insert at End', 'O(1) amortized', 'O(1)', 'O(1) avg'],
+            ['Insert at Beginning', 'O(N)', 'O(1)', 'O(1) avg'],
+            ['Search', 'O(N) / O(log N)', 'O(N)', 'O(1) avg']
+          ]
+        }
+      }
+    ],
+    canvasElements: []
+  },
+  {
+    id: 'note-on-trees',
+    title: 'Binary Search Trees & Self-Balancing AVL Trees',
+    notebookId: 'nb-cs',
+    unitId: 'unit-dsa',
+    chapterId: 'chap-trees',
+    isPinned: false,
+    isArchived: false,
+    isDeleted: false,
+    tags: ['trees', 'avl', 'graphs'],
+    fontFamily: 'sans',
+    fontSize: 16,
+    viewMode: 'both',
+    createdAt: Date.now() - 86400000 * 1,
+    updatedAt: Date.now() - 86400000 * 1,
+    blocks: [
+      { id: 'b-tr-1', type: 'h1', content: 'Binary Search Trees & AVL Balancing' },
+      { id: 'b-tr-2', type: 'paragraph', content: 'An AVL tree maintains height balance such that for every node, the heights of left and right subtrees differ by at most 1.' },
+      { id: 'b-tr-3', type: 'equation', content: '|h_{left} - h_{right}| \\le 1' }
+    ],
+    canvasElements: [
+      {
+        id: 'node-root',
+        type: 'mindmap-node',
+        shapeType: 'circle',
+        x: 400,
+        y: 100,
+        width: 80,
+        height: 80,
+        content: 'Root: 50',
+        fillColor: '#E0F2FE',
+        strokeColor: '#0284C7',
+        strokeWidth: 2
+      },
+      {
+        id: 'node-left',
+        type: 'mindmap-node',
+        shapeType: 'circle',
+        x: 280,
+        y: 220,
+        width: 80,
+        height: 80,
+        content: 'Left: 25',
+        fillColor: '#DCFCE7',
+        strokeColor: '#16A34A',
+        strokeWidth: 2,
+        parentId: 'node-root'
+      },
+      {
+        id: 'node-right',
+        type: 'mindmap-node',
+        shapeType: 'circle',
+        x: 520,
+        y: 220,
+        width: 80,
+        height: 80,
+        content: 'Right: 75',
+        fillColor: '#FEF3C7',
+        strokeColor: '#D97706',
+        strokeWidth: 2,
+        parentId: 'node-root'
+      },
+      {
+        id: 'conn-tree-1',
+        type: 'connector',
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        connectorType: 'straight',
+        strokeColor: '#64748B',
+        strokeWidth: 2,
+        connectorStart: { elementId: 'node-root', x: 420, y: 170 },
+        connectorEnd: { elementId: 'node-left', x: 320, y: 220 }
+      },
+      {
+        id: 'conn-tree-2',
+        type: 'connector',
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        connectorType: 'straight',
+        strokeColor: '#64748B',
+        strokeWidth: 2,
+        connectorStart: { elementId: 'node-root', x: 460, y: 170 },
+        connectorEnd: { elementId: 'node-right', x: 540, y: 220 }
+      }
+    ]
   }
 ];
+
+export const INITIAL_NOTEBOOKS = [
+  {
+    id: 'nb-cs',
+    name: 'Computer Science & Engineering',
+    color: '#7719AA', // OneNote Purple
+    icon: '💻',
+    createdAt: Date.now() - 86400000 * 7,
+    updatedAt: Date.now() - 86400000 * 1,
+    units: [
+      {
+        id: 'unit-dsa',
+        notebookId: 'nb-cs',
+        name: 'Unit 1: Data Structures & Algorithms',
+        createdAt: Date.now() - 86400000 * 7,
+        updatedAt: Date.now() - 86400000 * 2,
+        chapters: [
+          {
+            id: 'chap-arrays',
+            notebookId: 'nb-cs',
+            unitId: 'unit-dsa',
+            name: 'Arrays & Lists',
+            color: '#873999', // OneNote Purple tab
+            pageIds: ['note-on-arrays'],
+            createdAt: Date.now() - 86400000 * 6,
+            updatedAt: Date.now() - 86400000 * 2
+          },
+          {
+            id: 'chap-trees',
+            notebookId: 'nb-cs',
+            unitId: 'unit-dsa',
+            name: 'Trees & Graphs',
+            color: '#038387', // OneNote Teal tab
+            pageIds: ['note-on-trees'],
+            createdAt: Date.now() - 86400000 * 5,
+            updatedAt: Date.now() - 86400000 * 1
+          }
+        ]
+      },
+      {
+        id: 'unit-systems',
+        notebookId: 'nb-cs',
+        name: 'Unit 2: Distributed Systems',
+        createdAt: Date.now() - 86400000 * 4,
+        updatedAt: Date.now() - 86400000 * 1,
+        chapters: [
+          {
+            id: 'chap-consensus',
+            notebookId: 'nb-cs',
+            unitId: 'unit-systems',
+            name: 'Consensus & Raft',
+            color: '#0078D4', // OneNote Blue tab
+            pageIds: [],
+            createdAt: Date.now() - 86400000 * 3,
+            updatedAt: Date.now() - 86400000 * 1
+          }
+        ]
+      }
+    ]
+  }
+];
+

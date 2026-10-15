@@ -143,6 +143,63 @@ export const exportService = {
         if (rows.length > 0) {
           docChildren.push(new Table({ rows }));
         }
+      } else if (block.type === 'timeline' && block.timelineEvents) {
+        docChildren.push(
+          new Paragraph({
+            text: 'Project Timeline & Milestones',
+            heading: HeadingLevel.HEADING_3,
+            spacing: { before: 180, after: 80 }
+          })
+        );
+        for (const ev of block.timelineEvents) {
+          docChildren.push(
+            new Paragraph({
+              children: [
+                new TextRun({ text: `[${ev.date}] `, bold: true }),
+                new TextRun({ text: `${ev.title} (${ev.status.toUpperCase()}): `, bold: true }),
+                new TextRun({ text: ev.description || '' })
+              ],
+              spacing: { after: 40 }
+            })
+          );
+        }
+      } else if (block.type === 'image') {
+        docChildren.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `[Image: ${block.imageCaption || block.imageUrl || 'Attached image'}]`,
+                italics: true
+              })
+            ],
+            spacing: { before: 100, after: 100 }
+          })
+        );
+      } else if (block.type === 'link-to-page') {
+        docChildren.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `🔗 Linked Note Reference [ID: ${block.linkedNoteId || 'None'}]`,
+                italics: true,
+                color: '2563EB'
+              })
+            ],
+            spacing: { after: 60 }
+          })
+        );
+      } else if (block.type === 'webview') {
+        docChildren.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `🌐 Embedded Web View: ${block.url || 'No URL specified'}`,
+                color: '0891B2'
+              })
+            ],
+            spacing: { after: 60 }
+          })
+        );
       } else if (block.type === 'divider') {
         docChildren.push(
           new Paragraph({
@@ -272,6 +329,24 @@ export const exportService = {
             md += '\n';
           }
           break;
+        case 'timeline':
+          if (block.timelineEvents) {
+            md += `### Project Timeline & Milestones\n\n`;
+            for (const ev of block.timelineEvents) {
+              md += `- **[${ev.date}]** ${ev.title} (${ev.status.toUpperCase()}): ${ev.description}\n`;
+            }
+            md += '\n';
+          }
+          break;
+        case 'image':
+          md += `![${block.imageCaption || 'image'}](${block.imageUrl || ''})\n\n`;
+          break;
+        case 'link-to-page':
+          md += `🔗 [Linked Note (ID: ${block.linkedNoteId})]\n\n`;
+          break;
+        case 'webview':
+          md += `🌐 [Web View: ${block.url}](${block.url})\n\n`;
+          break;
         default:
           md += `${block.content}\n\n`;
       }
@@ -318,6 +393,7 @@ export const exportService = {
             th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
             th { background-color: #f8f8f8; }
             .task-done { text-decoration: line-through; color: #888; }
+            .timeline-event { border-left: 2px solid #10B981; padding-left: 12px; margin: 10px 0; }
             hr { border: none; border-top: 1px solid #e5e5e5; margin: 20px 0; }
             @media print {
               body { margin: 0; padding: 15mm; }
@@ -346,6 +422,18 @@ export const exportService = {
                 if (b.type === 'divider') return `<hr/>`;
                 if (b.type === 'table' && b.tableData) {
                   return `<table><thead><tr>${b.tableData.headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${b.tableData.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+                }
+                if (b.type === 'timeline' && b.timelineEvents) {
+                  return `<div style="margin: 16px 0;"><h3>Timeline</h3>${b.timelineEvents.map((ev) => `<div class="timeline-event"><strong>${ev.date} - ${ev.title} (${ev.status})</strong><p>${ev.description}</p></div>`).join('')}</div>`;
+                }
+                if (b.type === 'image' && b.imageUrl) {
+                  return `<div style="margin: 14px 0;"><img src="${b.imageUrl}" style="max-width: 100%; border-radius: 6px;"/><p style="font-size: 12px; color: #666; text-align: center;">${b.imageCaption || ''}</p></div>`;
+                }
+                if (b.type === 'link-to-page') {
+                  return `<p>🔗 <em>Linked Note [ID: ${b.linkedNoteId || ''}]</em></p>`;
+                }
+                if (b.type === 'webview') {
+                  return `<p>🌐 <em>Web View Embed: <a href="${b.url}">${b.url}</a></em></p>`;
                 }
                 return `<p>${b.content || ''}</p>`;
               })

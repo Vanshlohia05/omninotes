@@ -6,7 +6,9 @@ import {
   Calendar,
   Tag as TagIcon,
   ArrowUpDown,
-  FileText
+  FileText,
+  RotateCcw,
+  ChevronLeft
 } from 'lucide-react';
 import { NoteItem, Folder } from '../../types/note';
 
@@ -16,7 +18,9 @@ interface NotesListProps {
   activeNoteId: string | null;
   onSelectNote: (id: string) => void;
   onCreateNote: () => void;
+  onRestoreNote?: (id: string) => void;
   selectedFilter: string; // 'all' | 'pinned' | 'checklists' | 'reminders' | 'archive' | 'trash' | folderId | tag
+  onBackToFolders?: () => void;
 }
 
 export const NotesList: React.FC<NotesListProps> = ({
@@ -25,7 +29,9 @@ export const NotesList: React.FC<NotesListProps> = ({
   activeNoteId,
   onSelectNote,
   onCreateNote,
-  selectedFilter
+  onRestoreNote,
+  selectedFilter,
+  onBackToFolders
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'updated' | 'created' | 'title'>('updated');
@@ -112,11 +118,23 @@ export const NotesList: React.FC<NotesListProps> = ({
   };
 
   return (
-    <div className="w-full md:w-80 lg:w-96 flex flex-col h-full border-r border-black/10 dark:border-white/10 bg-[#FAFAFA] dark:bg-[#1C1C1E] select-none">
+    <div className="w-full md:w-80 lg:w-96 flex flex-col h-full border-r border-black/10 dark:border-white/10 bg-[#FAFAFA] dark:bg-[#1C1C1E]">
       {/* Top Search & Actions */}
       <div className="p-3 border-b border-black/5 dark:border-white/5 space-y-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Notes</h2>
+          <div className="flex items-center gap-1.5">
+            {onBackToFolders && (
+              <button
+                onClick={onBackToFolders}
+                className="md:hidden flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-semibold text-xs px-2 py-1 -ml-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition"
+                title="Back to Folders"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Folders</span>
+              </button>
+            )}
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Notes</h2>
+          </div>
           <button
             onClick={onCreateNote}
             className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-sm transition active:scale-95"
@@ -174,11 +192,22 @@ export const NotesList: React.FC<NotesListProps> = ({
             return (
               <div
                 key={note.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectNote(note.id)}
+                onTouchStart={() => {
+                  // Pre-warm touch handler for instantaneous mobile tap response
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectNote(note.id);
+                  }
+                }}
                 style={{
                   backgroundColor: isSelected ? undefined : note.color || undefined
                 }}
-                className={`p-3 rounded-xl cursor-pointer transition relative group border ${
+                className={`p-3 rounded-xl cursor-pointer transition relative group border touch-manipulation active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-amber-500/40 ${
                   isSelected
                     ? 'bg-amber-100/70 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700/60 shadow-sm'
                     : 'border-black/5 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-neutral-800/60'
@@ -204,23 +233,46 @@ export const NotesList: React.FC<NotesListProps> = ({
                   </p>
                 </div>
 
-                {/* Tags and Folder pill */}
-                <div className="flex items-center gap-1 flex-wrap mt-1">
-                  {note.folderId && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-slate-600 dark:text-slate-300 font-medium">
-                      {folders.find((f) => f.id === note.folderId)?.name || 'Folder'}
-                    </span>
-                  )}
-                  {note.tags.slice(0, 3).map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200/50"
-                    >
-                      #{tag}
-                    </span>
-                  ))}
-                  {note.tags.length > 3 && (
-                    <span className="text-[10px] text-slate-400">+{note.tags.length - 3}</span>
+                {/* Tags, Folder pill, and Trash Countdown/Restore */}
+                <div className="flex items-center justify-between gap-1 flex-wrap mt-1">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {note.folderId && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-slate-600 dark:text-slate-300 font-medium">
+                        {folders.find((f) => f.id === note.folderId)?.name || 'Folder'}
+                      </span>
+                    )}
+                    {note.tags.slice(0, 3).map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200/50"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                    {note.tags.length > 3 && (
+                      <span className="text-[10px] text-slate-400">+{note.tags.length - 3}</span>
+                    )}
+                  </div>
+
+                  {note.isDeleted && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-mono text-red-600 dark:text-red-400 font-semibold bg-red-50 dark:bg-red-950/50 px-1.5 py-0.5 rounded">
+                        {Math.max(0, 30 - Math.floor((Date.now() - (note.deletedAt || note.updatedAt)) / (1000 * 60 * 60 * 24)))}d left
+                      </span>
+                      {onRestoreNote && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRestoreNote(note.id);
+                          }}
+                          className="flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 hover:text-amber-700 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 px-1.5 py-0.5 rounded transition"
+                          title="Restore note"
+                        >
+                          <RotateCcw className="w-2.5 h-2.5" />
+                          Restore
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

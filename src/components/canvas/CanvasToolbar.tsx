@@ -20,7 +20,8 @@ import {
   ZoomOut,
   Maximize2,
   RotateCcw,
-  Palette
+  Palette,
+  Image as ImageIcon
 } from 'lucide-react';
 import { ShapeType } from '../../types/note';
 
@@ -32,6 +33,7 @@ interface CanvasToolbarProps {
   onAddShape: (shapeType: ShapeType) => void;
   onAddMindMapNode: () => void;
   onAddConnector: () => void;
+  onAddImage?: (imageUrl: string) => void;
   scale: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -58,6 +60,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onAddShape,
   onAddMindMapNode,
   onAddConnector,
+  onAddImage,
   scale,
   onZoomIn,
   onZoomOut,
@@ -70,7 +73,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   const [isColorOpen, setIsColorOpen] = useState(false);
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 p-1.5 rounded-2xl bg-white/90 dark:bg-[#222222]/90 backdrop-blur-md shadow-apple-floating border border-black/10 dark:border-white/10 select-none">
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 p-1.5 rounded-2xl bg-white/95 dark:bg-[#222222]/95 backdrop-blur-md shadow-apple-floating border border-black/10 dark:border-white/10 select-none max-w-[95vw] overflow-x-auto scrollbar-none">
       {/* Pointer / Select */}
       <button
         onClick={() => onSelectTool('select')}
@@ -252,6 +255,31 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
       >
         <ArrowRight className="w-4 h-4 text-emerald-500" />
       </button>
+
+      {/* Image Upload */}
+      <label
+        className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer"
+        title="Add Image to Canvas"
+      >
+        <ImageIcon className="w-4 h-4 text-pink-500" />
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file && onAddImage) {
+              const reader = new FileReader();
+              reader.onload = () => {
+                if (typeof reader.result === 'string') {
+                  onAddImage(reader.result);
+                }
+              };
+              reader.readAsDataURL(file);
+            }
+          }}
+        />
+      </label>
 
       <div className="w-[1px] h-5 bg-black/10 dark:bg-white/10 mx-0.5" />
 

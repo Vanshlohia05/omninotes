@@ -1,19 +1,24 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { NoteItem, Folder, GDriveConfig, BlockItem as BlockItemType, CanvasElement } from './types/note';
+import { Notebook, NotebookUnit, NotebookChapter } from './types/notebook';
 import { dbService } from './services/indexedDb';
-import { INITIAL_NOTES, INITIAL_FOLDERS } from './services/sampleData';
+import { INITIAL_NOTES, INITIAL_FOLDERS, INITIAL_NOTEBOOKS } from './services/sampleData';
 import { gdriveService } from './services/gdrive';
 import { notificationService } from './services/notificationService';
 import { MCPServerEngine } from './services/mcpServer';
+import { ApiServer } from './services/apiServer';
 import { Sidebar } from './components/layout/Sidebar';
 import { NotesList } from './components/layout/NotesList';
 import { NoteHeader } from './components/layout/NoteHeader';
 import { BlockEditor } from './components/editor/BlockEditor';
 import { InfiniteCanvas } from './components/canvas/InfiniteCanvas';
+import { TimelineView } from './components/timeline/TimelineView';
+import { OneNoteWorkspace } from './components/onenote/OneNoteWorkspace';
 import { SettingsModal } from './components/layout/SettingsModal';
 import { ReminderModal } from './components/common/ReminderModal';
 import { MCPModal } from './components/mcp/MCPModal';
-import { Menu, X, ArrowLeft } from 'lucide-react';
+import { APIExplorerModal } from './components/api/APIExplorerModal';
+import { Menu, Sparkles } from 'lucide-react';
 
 export function App() {
   const [notes, setNotes] = useState<NoteItem[]>([]);
@@ -23,19 +28,31 @@ export function App() {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
+  const [mobileView, setMobileView] = useState<'list' | 'note'>('list');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMCPOpen, setIsMCPOpen] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
+  const [isAPIExplorerOpen, setIsAPIExplorerOpen] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState<'notes' | 'notebooks'>('notes');
+  const [notebooks, setNotebooks] = useState<Notebook[]>(INITIAL_NOTEBOOKS);
+  const [activeNotebookId, setActiveNotebookId] = useState<string | null>('nb-cs');
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [gdriveConfig, setGdriveConfig] = useState<GDriveConfig>({
     clientId: '',
     apiKey: '',
     isAuthorized: false
   });
 
+  // Undo / Redo History Stacks
+  const [undoStack, setUndoStack] = useState<NoteItem[]>([]);
+  const [redoStack, setRedoStack] = useState<NoteItem[]>([]);
+
   const notesRef = useRef<NoteItem[]>([]);
   notesRef.current = notes;
   const foldersRef = useRef<Folder[]>([]);
   foldersRef.current = folders;
+  const notebooksRef = useRef<Notebook[]>([]);
+  notebooksRef.current = notebooks;
 
   // Initialize DB and Seed Data
   useEffect(() => {
@@ -55,12 +72,20 @@ export function App() {
 
         setGdriveConfig(storedGDrive);
 
+        const storedNotebooks = await dbService.getSetting<Notebook[]>('notebooks', INITIAL_NOTEBOOKS);
+        setNotebooks(storedNotebooks);
+        if (storedNotebooks.length > 0) {
+          setActiveNotebookId(storedNotebooks[0].id);
+        }
+
         if (storedNotes.length === 0 && storedFolders.length === 0) {
           // First time user: seed showcase data
           await dbService.saveNotes(INITIAL_NOTES);
           await dbService.saveFolders(INITIAL_FOLDERS);
+          await dbService.saveSetting('notebooks', INITIAL_NOTEBOOKS);
           setNotes(INITIAL_NOTES);
           setFolders(INITIAL_FOLDERS);
+          setNotebooks(INITIAL_NOTEBOOKS);
           setActiveNoteId(INITIAL_NOTES[0].id);
           setOpenTabs([INITIAL_NOTES[0].id, INITIAL_NOTES[1].id]);
         } else {
@@ -83,7 +108,7 @@ export function App() {
   useEffect(() => {
     const interval = setInterval(() => {
       notificationService.checkReminders(notesRef.current, (updatedNote) => {
-        handleUpdateNote(updatedNote);
+        handleUpdateNote(updatedNote, true);
       });
     }, 30000); // Check every 30 seconds
     return () => clearInterval(interval);
@@ -107,6 +132,44 @@ export function App() {
     });
   }, []);
 
+  // REST API Server Instance for AI Agents & Custom Actions
+  const apiServer = useMemo(() => {
+    return new ApiServer({
+      getNotes: () => notesRef.current,
+      getFolders: () => foldersRef.current,
+      getNotebooks: () => notebooksRef.current,
+      onNoteCreate: (newNote: NoteItem) => {
+        setNotes((prev) => [newNote, ...prev]);
+        dbService.saveNote(newNote);
+        setActiveNoteId(newNote.id);
+        setOpenTabs((prev) => [...prev, newNote.id]);
+      },
+      onNoteUpdate: (updatedNote: NoteItem) => {
+        setNotes((prev) => prev.map((n) => (n.id === updatedNote.id ? updatedNote : n)));
+        dbService.saveNote(updatedNote);
+      },
+      onNoteDelete: (id: string, permanent?: boolean) => {
+        if (permanent) {
+          setNotes((prev) => prev.filter((n) => n.id !== id));
+          dbService.deleteNotePermanently(id);
+        } else {
+          setNotes((prev) =>
+            prev.map((n) => (n.id === id ? { ...n, isDeleted: true, deletedAt: Date.now() } : n))
+          );
+        }
+      },
+      onNotebooksChange: (updatedNotebooks: Notebook[]) => {
+        setNotebooks(updatedNotebooks);
+        dbService.saveSetting('notebooks', updatedNotebooks);
+      }
+    });
+  }, []);
+
+  // Active Notebook Lookup
+  const activeNotebook = useMemo(() => {
+    return notebooks.find((nb) => nb.id === activeNotebookId) || notebooks[0] || null;
+  }, [notebooks, activeNotebookId]);
+
   // Active Note Lookup
   const activeNote = useMemo(() => {
     return notes.find((n) => n.id === activeNoteId) || null;
@@ -123,7 +186,10 @@ export function App() {
     if (!openTabs.includes(id)) {
       setOpenTabs((prev) => [...prev, id]);
     }
+    setUndoStack([]);
+    setRedoStack([]);
     setIsSidebarOpenMobile(false);
+    setMobileView('note');
   };
 
   const handleCloseTab = (idToClose: string) => {
@@ -160,13 +226,80 @@ export function App() {
     setNotes(updated);
     setActiveNoteId(newNote.id);
     setOpenTabs((prev) => [...prev, newNote.id]);
+    setUndoStack([]);
+    setRedoStack([]);
     dbService.saveNote(newNote);
+    setMobileView('note');
   };
 
-  const handleUpdateNote = (updated: NoteItem) => {
-    const withTimestamp = { ...updated, updatedAt: Date.now() };
-    setNotes((prev) => prev.map((n) => (n.id === withTimestamp.id ? withTimestamp : n)));
-    dbService.saveNote(withTimestamp);
+  const handleUpdateNote = useCallback(
+    (updated: NoteItem, isHistoryOp = false) => {
+      if (!isHistoryOp && activeNote && activeNote.id === updated.id) {
+        setUndoStack((prev) => [JSON.parse(JSON.stringify(activeNote)), ...prev.slice(0, 49)]);
+        setRedoStack([]);
+      }
+
+      const withTimestamp = { ...updated, updatedAt: Date.now() };
+      setNotes((prev) => prev.map((n) => (n.id === withTimestamp.id ? withTimestamp : n)));
+      dbService.saveNote(withTimestamp);
+    },
+    [activeNote]
+  );
+
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0 || !activeNote) return;
+    const [previousState, ...restUndo] = undoStack;
+    setUndoStack(restUndo);
+    setRedoStack((prev) => [JSON.parse(JSON.stringify(activeNote)), ...prev]);
+    handleUpdateNote(previousState, true);
+  }, [undoStack, activeNote, handleUpdateNote]);
+
+  const handleRedo = useCallback(() => {
+    if (redoStack.length === 0 || !activeNote) return;
+    const [nextState, ...restRedo] = redoStack;
+    setRedoStack(restRedo);
+    setUndoStack((prev) => [JSON.parse(JSON.stringify(activeNote)), ...prev]);
+    handleUpdateNote(nextState, true);
+  }, [redoStack, activeNote, handleUpdateNote]);
+
+  // Global Undo / Redo Keyboard Shortcuts
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      const isInput =
+        (e.target as HTMLElement).tagName === 'TEXTAREA' ||
+        (e.target as HTMLElement).tagName === 'INPUT';
+
+      if ((e.ctrlKey || e.metaKey) && !isInput) {
+        if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          handleUndo();
+        } else if (
+          (e.key.toLowerCase() === 'z' && e.shiftKey) ||
+          e.key.toLowerCase() === 'y'
+        ) {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, [handleUndo, handleRedo]);
+
+  // Inline Hashtags Detection Callback
+  const handleInlineTagsFound = (tags: string[]) => {
+    if (!activeNote) return;
+    const existing = new Set(activeNote.tags);
+    let changed = false;
+    for (const t of tags) {
+      if (!existing.has(t)) {
+        existing.add(t);
+        changed = true;
+      }
+    }
+    if (changed) {
+      handleUpdateNote({ ...activeNote, tags: Array.from(existing) });
+    }
   };
 
   const handleDeleteNote = () => {
@@ -182,8 +315,27 @@ export function App() {
       // Move to Recently Deleted
       const trashed = { ...activeNote, isDeleted: true, deletedAt: Date.now() };
       handleUpdateNote(trashed);
-      handleCloseTab(activeNote.id);
     }
+  };
+
+  const handleDeleteNoteById = (id: string) => {
+    dbService.deleteNotePermanently(id);
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    handleCloseTab(id);
+  };
+
+  const handleRestoreNote = (idToRestore?: string) => {
+    const targetId = idToRestore || activeNoteId;
+    if (!targetId) return;
+    const target = notes.find((n) => n.id === targetId);
+    if (!target) return;
+    const restored: NoteItem = {
+      ...target,
+      isDeleted: false,
+      deletedAt: undefined,
+      updatedAt: Date.now()
+    };
+    handleUpdateNote(restored, true);
   };
 
   const handleCreateFolder = async (name: string, color: string) => {
@@ -218,6 +370,8 @@ export function App() {
     setFolders(INITIAL_FOLDERS);
     setActiveNoteId(INITIAL_NOTES[0].id);
     setOpenTabs([INITIAL_NOTES[0].id, INITIAL_NOTES[1].id]);
+    setUndoStack([]);
+    setRedoStack([]);
   };
 
   const handleRestoreVault = async (restoredNotes: NoteItem[], restoredFolders: Folder[]) => {
@@ -229,6 +383,8 @@ export function App() {
       setActiveNoteId(restoredNotes[0].id);
       setOpenTabs([restoredNotes[0].id]);
     }
+    setUndoStack([]);
+    setRedoStack([]);
   };
 
   const handleToggleDarkMode = () => {
@@ -282,6 +438,159 @@ export function App() {
     return childNote.id;
   };
 
+  // Microsoft OneNote Notebooks Handlers
+  const handleCreateNotebook = (name: string, color: string) => {
+    const newNb: Notebook = {
+      id: `nb-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      name,
+      color,
+      icon: '📓',
+      units: [
+        {
+          id: `unit-${Date.now()}-1`,
+          notebookId: `nb-${Date.now()}`,
+          name: 'Unit 1: Section Group',
+          chapters: [
+            {
+              id: `chap-${Date.now()}-1`,
+              notebookId: `nb-${Date.now()}`,
+              unitId: `unit-${Date.now()}-1`,
+              name: 'Section 1',
+              color: '#873999',
+              pageIds: [],
+              createdAt: Date.now(),
+              updatedAt: Date.now()
+            }
+          ],
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        }
+      ],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    const updated = [newNb, ...notebooks];
+    setNotebooks(updated);
+    setActiveNotebookId(newNb.id);
+    setSidebarMode('notebooks');
+    dbService.saveSetting('notebooks', updated);
+  };
+
+  const handleDeleteNotebook = (id: string) => {
+    const updated = notebooks.filter((nb) => nb.id !== id);
+    setNotebooks(updated);
+    if (activeNotebookId === id) {
+      setActiveNotebookId(updated[0]?.id || null);
+    }
+    dbService.saveSetting('notebooks', updated);
+  };
+
+  const handleCreateUnit = (notebookId: string, name: string) => {
+    const newUnit: NotebookUnit = {
+      id: `unit-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      notebookId,
+      name,
+      chapters: [
+        {
+          id: `chap-${Date.now()}-1`,
+          notebookId,
+          unitId: `unit-${Date.now()}`,
+          name: 'General',
+          color: '#873999',
+          pageIds: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        }
+      ],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    const updated = notebooks.map((nb) =>
+      nb.id === notebookId ? { ...nb, units: [...nb.units, newUnit], updatedAt: Date.now() } : nb
+    );
+    setNotebooks(updated);
+    dbService.saveSetting('notebooks', updated);
+  };
+
+  const handleCreateChapter = (notebookId: string, unitId: string, name: string, color: string) => {
+    const newChapter: NotebookChapter = {
+      id: `chap-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      notebookId,
+      unitId,
+      name,
+      color,
+      pageIds: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    const updated = notebooks.map((nb) => {
+      if (nb.id !== notebookId) return nb;
+      return {
+        ...nb,
+        units: nb.units.map((u) =>
+          u.id === unitId ? { ...u, chapters: [...u.chapters, newChapter], updatedAt: Date.now() } : u
+        ),
+        updatedAt: Date.now()
+      };
+    });
+    setNotebooks(updated);
+    dbService.saveSetting('notebooks', updated);
+  };
+
+  const handleDeleteChapter = (notebookId: string, unitId: string, chapterId: string) => {
+    const updated = notebooks.map((nb) => {
+      if (nb.id !== notebookId) return nb;
+      return {
+        ...nb,
+        units: nb.units.map((u) =>
+          u.id === unitId ? { ...u, chapters: u.chapters.filter((c) => c.id !== chapterId), updatedAt: Date.now() } : u
+        ),
+        updatedAt: Date.now()
+      };
+    });
+    setNotebooks(updated);
+    dbService.saveSetting('notebooks', updated);
+  };
+
+  const handleCreateChapterPage = (notebookId: string, chapterId: string, title = 'Untitled Page') => {
+    const newPage: NoteItem = {
+      id: `note-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      title,
+      notebookId,
+      chapterId,
+      isPinned: false,
+      isArchived: false,
+      isDeleted: false,
+      tags: [],
+      fontFamily: 'sans',
+      fontSize: 16,
+      viewMode: 'document',
+      blocks: [{ id: `b-${Date.now()}`, type: 'paragraph', content: '' }],
+      canvasElements: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    setNotes((prev) => [newPage, ...prev]);
+    dbService.saveNote(newPage);
+    setActiveNoteId(newPage.id);
+
+    const updated = notebooks.map((nb) => {
+      if (nb.id !== notebookId) return nb;
+      return {
+        ...nb,
+        units: nb.units.map((u) => ({
+          ...u,
+          chapters: u.chapters.map((c) =>
+            c.id === chapterId ? { ...c, pageIds: [...c.pageIds, newPage.id], updatedAt: Date.now() } : c
+          )
+        }))
+      };
+    });
+    setNotebooks(updated);
+    dbService.saveSetting('notebooks', updated);
+  };
+
   // Font family CSS class helper
   const getFontFamilyClass = (style: string) => {
     switch (style) {
@@ -298,51 +607,136 @@ export function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#FBFBFB] dark:bg-[#181818] text-slate-800 dark:text-slate-100">
+    <div className="flex h-[100dvh] w-screen overflow-hidden bg-[#FBFBFB] dark:bg-[#181818] text-slate-800 dark:text-slate-100">
       {/* Mobile Sidebar Backdrop */}
       {isSidebarOpenMobile && (
         <div
           onClick={() => setIsSidebarOpenMobile(false)}
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-200"
         />
       )}
 
-      {/* Pane 1: Apple Notes Sidebar */}
+      {/* Pane 1: Apple Notes & OneNote Binder Sidebar */}
       <div
-        className={`fixed md:relative z-50 md:z-0 h-full transition-transform duration-200 ease-in-out ${
-          isSidebarOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        className={`fixed md:relative z-50 md:z-0 h-full w-72 sm:w-80 md:w-64 shrink-0 transition-transform duration-200 ease-in-out ${
+          isSidebarOpenMobile
+            ? 'translate-x-0 shadow-2xl pointer-events-auto'
+            : '-translate-x-full md:translate-x-0 pointer-events-none md:pointer-events-auto'
         }`}
       >
         <Sidebar
           notes={notes}
           folders={folders}
+          notebooks={notebooks}
+          sidebarMode={sidebarMode}
+          onSidebarModeChange={setSidebarMode}
           selectedFilter={selectedFilter}
           onSelectFilter={(f) => {
             setSelectedFilter(f);
+            setSidebarMode('notes');
+            setIsSidebarOpenMobile(false);
+            setMobileView('list');
+          }}
+          activeNotebookId={activeNotebookId}
+          onSelectNotebook={(id) => {
+            setActiveNotebookId(id);
+            setSidebarMode('notebooks');
             setIsSidebarOpenMobile(false);
           }}
           onCreateFolder={handleCreateFolder}
           onDeleteFolder={handleDeleteFolder}
+          onCreateNotebook={handleCreateNotebook}
+          onDeleteNotebook={handleDeleteNotebook}
+          onCreateUnit={handleCreateUnit}
+          onCreateChapter={handleCreateChapter}
+          onSelectChapter={(nbId, chapId) => {
+            setActiveNotebookId(nbId);
+            setActiveChapterId(chapId);
+            setSidebarMode('notebooks');
+            setIsSidebarOpenMobile(false);
+          }}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenMCPModal={() => setIsMCPOpen(true)}
+          onOpenAPIExplorer={() => setIsAPIExplorerOpen(true)}
           isDarkMode={isDarkMode}
           onToggleDarkMode={handleToggleDarkMode}
           isDriveConnected={gdriveConfig.isAuthorized}
+          onCloseMobile={() => setIsSidebarOpenMobile(false)}
         />
       </div>
 
-      {/* Pane 2: Middle Notes List */}
-      <NotesList
-        notes={notes}
-        folders={folders}
-        activeNoteId={activeNoteId}
-        onSelectNote={handleSelectNote}
-        onCreateNote={handleCreateNote}
-        selectedFilter={selectedFilter}
-      />
+      {/* Main Content Area */}
+      {sidebarMode === 'notebooks' ? (
+        <div className="flex-1 flex h-full overflow-hidden">
+          {activeNotebook ? (
+            <OneNoteWorkspace
+              notebook={activeNotebook}
+              allNotebooks={notebooks}
+              notes={notes}
+              activeNoteId={activeNoteId}
+              activeChapterId={activeChapterId}
+              onSelectChapter={(nbId, chapId) => setActiveChapterId(chapId)}
+              onSelectNote={(noteId) => {
+                setActiveNoteId(noteId);
+                setMobileView('note');
+              }}
+              onCreatePage={handleCreateChapterPage}
+              onDeletePage={handleDeleteNoteById}
+              onUpdateNote={handleUpdateNote}
+              onSelectNotebook={(id) => {
+                setActiveNotebookId(id);
+                setActiveChapterId(null);
+              }}
+              onCreateChapter={handleCreateChapter}
+              onDeleteChapter={handleDeleteChapter}
+              onCreateUnit={handleCreateUnit}
+              onBackToNotesList={() => setSidebarMode('notes')}
+              onOpenSidebar={() => setIsSidebarOpenMobile(true)}
+              onCreateSubpage={handleCreateSubpage}
+              onInlineTagsFound={handleInlineTagsFound}
+            />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 text-center select-none">
+              <div className="text-4xl mb-3">📓</div>
+              <h2 className="text-lg font-bold text-slate-700 dark:text-slate-300">No Notebook Selected</h2>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                Create a notebook in the sidebar to organize units and chapters.
+              </p>
+              <button
+                onClick={() => handleCreateNotebook('My Notebook', '#7719AA')}
+                className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold shadow-sm transition"
+              >
+                + Create Notebook
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Pane 2: Middle Notes List */}
+          <div
+            className={`h-full ${
+              mobileView === 'list' ? 'w-full flex' : 'hidden md:flex md:w-80 lg:w-96'
+            } shrink-0`}
+          >
+            <NotesList
+              notes={notes}
+              folders={folders}
+              activeNoteId={activeNoteId}
+              onSelectNote={handleSelectNote}
+              onCreateNote={handleCreateNote}
+              onRestoreNote={handleRestoreNote}
+              selectedFilter={selectedFilter}
+              onBackToFolders={() => setIsSidebarOpenMobile(true)}
+            />
+          </div>
 
-      {/* Pane 3: Singular Active Note Space */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#FBFBFB] dark:bg-[#181818] min-w-0">
+          {/* Pane 3: Singular Active Note Space */}
+          <div
+            className={`flex-1 flex flex-col h-full overflow-hidden bg-[#FBFBFB] dark:bg-[#181818] min-w-0 ${
+              mobileView === 'note' ? 'flex w-full' : 'hidden md:flex'
+            }`}
+          >
         {activeNote ? (
           <div
             className={`flex-1 flex flex-col h-full overflow-hidden ${getFontFamilyClass(activeNote.fontFamily)}`}
@@ -354,26 +748,35 @@ export function App() {
             {/* Note Header & Action Controls */}
             <NoteHeader
               note={activeNote}
+              allNotes={notes}
               folders={folders}
               openTabs={activeTabsNotes}
               activeNoteId={activeNote.id}
+              canUndo={undoStack.length > 0}
+              canRedo={redoStack.length > 0}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
               onSelectTab={handleSelectNote}
               onCloseTab={handleCloseTab}
               onUpdateNote={handleUpdateNote}
               onDeleteNote={handleDeleteNote}
+              onRestoreNote={handleRestoreNote}
               onOpenReminderModal={() => setIsReminderOpen(true)}
+              onBackToNotes={() => setMobileView('list')}
             />
 
-            {/* Note Body: Notion Document Mode or OneNote Infinite Canvas Mode or Split */}
+            {/* Note Body: Notion Document Mode or OneNote Infinite Canvas Mode or Timeline or Split */}
             <div className="flex-1 overflow-y-auto relative scrollbar-thin">
               {activeNote.viewMode === 'document' && (
                 <BlockEditor
                   note={activeNote}
+                  allNotes={notes}
                   onChange={(blocks: BlockItemType[]) =>
                     handleUpdateNote({ ...activeNote, blocks })
                   }
                   onNavigateSubpage={handleSelectNote}
                   onCreateSubpage={handleCreateSubpage}
+                  onInlineTagsFound={handleInlineTagsFound}
                 />
               )}
 
@@ -386,16 +789,27 @@ export function App() {
                 />
               )}
 
+              {activeNote.viewMode === 'timeline' && (
+                <TimelineView
+                  note={activeNote}
+                  onChange={(blocks: BlockItemType[]) =>
+                    handleUpdateNote({ ...activeNote, blocks })
+                  }
+                />
+              )}
+
               {activeNote.viewMode === 'both' && (
                 <div className="flex h-full w-full divide-x divide-black/10 dark:divide-white/10">
                   <div className="w-1/2 h-full overflow-y-auto scrollbar-thin">
                     <BlockEditor
                       note={activeNote}
+                      allNotes={notes}
                       onChange={(blocks: BlockItemType[]) =>
                         handleUpdateNote({ ...activeNote, blocks })
                       }
                       onNavigateSubpage={handleSelectNote}
                       onCreateSubpage={handleCreateSubpage}
+                      onInlineTagsFound={handleInlineTagsFound}
                     />
                   </div>
                   <div className="w-1/2 h-full relative">
@@ -426,14 +840,19 @@ export function App() {
           </div>
         )}
       </div>
+      </>
+      )}
 
-      {/* Floating Mobile Sidebar Trigger */}
-      <button
-        onClick={() => setIsSidebarOpenMobile(!isSidebarOpenMobile)}
-        className="fixed bottom-4 left-4 z-40 md:hidden p-3 rounded-full bg-amber-500 text-white shadow-apple-floating hover:bg-amber-600 transition"
-      >
-        <Menu className="w-5 h-5" />
-      </button>
+      {/* Floating Mobile Sidebar Trigger (shown only on list view when sidebar is closed) */}
+      {mobileView === 'list' && !isSidebarOpenMobile && sidebarMode === 'notes' && (
+        <button
+          onClick={() => setIsSidebarOpenMobile(true)}
+          className="fixed bottom-5 left-5 z-40 md:hidden p-3.5 rounded-full bg-amber-500 text-white shadow-apple-floating hover:bg-amber-600 active:scale-95 transition"
+          title="Open Folders"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Modals */}
       <SettingsModal
@@ -453,6 +872,12 @@ export function App() {
         isOpen={isMCPOpen}
         onClose={() => setIsMCPOpen(false)}
         mcpEngine={mcpEngine}
+      />
+
+      <APIExplorerModal
+        isOpen={isAPIExplorerOpen}
+        onClose={() => setIsAPIExplorerOpen(false)}
+        apiServer={apiServer}
       />
 
       <ReminderModal
