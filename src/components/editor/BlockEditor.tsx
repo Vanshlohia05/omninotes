@@ -34,6 +34,8 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     query: ''
   });
 
+  const [focusTarget, setFocusTarget] = useState<{ id: string; pos?: 'start' | 'end' | number } | null>(null);
+
   const blocks = note.blocks.length > 0 ? note.blocks : [{ id: `b-${Date.now()}`, type: 'paragraph' as const, content: '' }];
 
   const handleUpdateBlock = (index: number, updated: BlockItemType) => {
@@ -44,21 +46,102 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
 
   const handleDeleteBlock = (index: number) => {
     if (blocks.length <= 1) {
-      onChange([{ id: `b-${Date.now()}`, type: 'paragraph', content: '' }]);
+      const emptyBlock: BlockItemType = { id: `b-${Date.now()}`, type: 'paragraph', content: '' };
+      onChange([emptyBlock]);
+      setFocusTarget({ id: emptyBlock.id, pos: 'start' });
       return;
     }
+    const prevBlock = blocks[index - 1];
+    const nextBlock = blocks[index + 1];
+    const targetToFocus = prevBlock || nextBlock;
     const newBlocks = blocks.filter((_, i) => i !== index);
     onChange(newBlocks);
+    if (targetToFocus) {
+      setFocusTarget({ id: targetToFocus.id, pos: prevBlock ? 'end' : 'start' });
+    }
   };
 
-  const handleInsertAfter = (index: number, type: BlockType = 'paragraph') => {
+  const handleInsertAfter = (index: number, type: BlockType = 'paragraph', content = '', focusPos: 'start' | 'end' | number = 'start') => {
     const newBlock: BlockItemType = {
       id: `b-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       type,
-      content: ''
+      content
     };
     const newBlocks = [...blocks.slice(0, index + 1), newBlock, ...blocks.slice(index + 1)];
     onChange(newBlocks);
+    setFocusTarget({ id: newBlock.id, pos: focusPos });
+  };
+
+  const handleSplitBlock = (index: number, splitPos: number) => {
+    const currentBlock = blocks[index];
+    const beforeText = currentBlock.content.slice(0, splitPos);
+    const afterText = currentBlock.content.slice(splitPos);
+
+    // If current block is an empty list item or task, turn it back into a standard paragraph
+    if (
+      (currentBlock.type === 'bullet' || currentBlock.type === 'number' || currentBlock.type === 'task') &&
+      currentBlock.content.trim() === ''
+    ) {
+      handleUpdateBlock(index, { ...currentBlock, type: 'paragraph' });
+      setFocusTarget({ id: currentBlock.id, pos: 'start' });
+      return;
+    }
+
+    // Maintain block type for consecutive list items
+    const nextType: BlockType =
+      currentBlock.type === 'bullet' || currentBlock.type === 'number' || currentBlock.type === 'task'
+        ? currentBlock.type
+        : 'paragraph';
+
+    const updatedCurrent: BlockItemType = {
+      ...currentBlock,
+      content: beforeText
+    };
+
+    const newBlock: BlockItemType = {
+      id: `b-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      type: nextType,
+      content: afterText,
+      checked: nextType === 'task' ? false : undefined
+    };
+
+    const newBlocks = [
+      ...blocks.slice(0, index),
+      updatedCurrent,
+      newBlock,
+      ...blocks.slice(index + 1)
+    ];
+
+    onChange(newBlocks);
+    setFocusTarget({ id: newBlock.id, pos: 0 });
+  };
+
+  const handleMergeWithPrevious = (index: number) => {
+    if (index === 0) return;
+    const currentBlock = blocks[index];
+    const prevBlock = blocks[index - 1];
+
+    const textTypes = ['paragraph', 'h1', 'h2', 'h3', 'h4', 'bullet', 'number', 'task', 'quote'];
+    if (textTypes.includes(prevBlock.type) && textTypes.includes(currentBlock.type)) {
+      const prevLength = prevBlock.content.length;
+      const updatedPrev: BlockItemType = {
+        ...prevBlock,
+        content: prevBlock.content + currentBlock.content
+      };
+      const newBlocks = [...blocks.slice(0, index - 1), updatedPrev, ...blocks.slice(index + 1)];
+      onChange(newBlocks);
+      setFocusTarget({ id: prevBlock.id, pos: prevLength });
+    } else {
+      handleDeleteBlock(index);
+    }
+  };
+
+  const handleNavigateBlock = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index > 0) {
+      setFocusTarget({ id: blocks[index - 1].id, pos: 'end' });
+    } else if (direction === 'down' && index < blocks.length - 1) {
+      setFocusTarget({ id: blocks[index + 1].id, pos: 'start' });
+    }
   };
 
   const handleTriggerSlash = (index: number, position: { top: number; left: number }) => {
@@ -147,10 +230,9 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
   const focusLastOrCreate = () => {
     const lastBlock = blocks[blocks.length - 1];
     if (lastBlock && lastBlock.content.trim() === '') {
-      const el = document.querySelector(`#block-${lastBlock.id} textarea`) as HTMLTextAreaElement | null;
-      el?.focus();
+      setFocusTarget({ id: lastBlock.id, pos: 'end' });
     } else {
-      handleInsertAfter(blocks.length - 1);
+      handleInsertAfter(blocks.length - 1, 'paragraph', '', 'start');
     }
   };
 
@@ -177,10 +259,16 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
           key={block.id}
           block={block}
           index={index}
+          totalBlocks={blocks.length}
+          focusTarget={focusTarget}
+          onClearFocusTarget={() => setFocusTarget(null)}
           allNotes={allNotes}
           onUpdate={(updated) => handleUpdateBlock(index, updated)}
           onDelete={() => handleDeleteBlock(index)}
           onInsertAfter={() => handleInsertAfter(index)}
+          onSplit={(pos) => handleSplitBlock(index, pos)}
+          onMergeWithPrevious={() => handleMergeWithPrevious(index)}
+          onNavigate={(dir) => handleNavigateBlock(index, dir)}
           onTriggerSlash={(pos) => handleTriggerSlash(index, pos)}
           onNavigateSubpage={onNavigateSubpage}
           onInlineTagsFound={onInlineTagsFound}

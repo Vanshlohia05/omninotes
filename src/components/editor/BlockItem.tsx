@@ -28,10 +28,16 @@ import { TimelineBlock } from './TimelineBlock';
 interface BlockItemProps {
   block: BlockItemType;
   index: number;
+  totalBlocks?: number;
+  focusTarget?: { id: string; pos?: 'start' | 'end' | number } | null;
+  onClearFocusTarget?: () => void;
   allNotes?: NoteItem[];
   onUpdate: (updated: BlockItemType) => void;
   onDelete: () => void;
   onInsertAfter: () => void;
+  onSplit?: (splitPos: number) => void;
+  onMergeWithPrevious?: () => void;
+  onNavigate?: (direction: 'up' | 'down') => void;
   onTriggerSlash: (position: { top: number; left: number }) => void;
   onNavigateSubpage?: (subpageId: string) => void;
   onInlineTagsFound?: (tags: string[]) => void;
@@ -58,10 +64,16 @@ const BG_HIGHLIGHTS = [
 export const BlockItem: React.FC<BlockItemProps> = ({
   block,
   index,
+  totalBlocks = 1,
+  focusTarget,
+  onClearFocusTarget,
   allNotes = [],
   onUpdate,
   onDelete,
   onInsertAfter,
+  onSplit,
+  onMergeWithPrevious,
+  onNavigate,
   onTriggerSlash,
   onNavigateSubpage,
   onInlineTagsFound
@@ -72,6 +84,20 @@ export const BlockItem: React.FC<BlockItemProps> = ({
   const textInputRef = useRef<HTMLTextAreaElement>(null);
   const equationRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus when targeted
+  useEffect(() => {
+    if (focusTarget && focusTarget.id === block.id && textInputRef.current) {
+      textInputRef.current.focus();
+      const len = textInputRef.current.value.length;
+      let pos = len;
+      if (focusTarget.pos === 'start') pos = 0;
+      else if (focusTarget.pos === 'end') pos = len;
+      else if (typeof focusTarget.pos === 'number') pos = Math.min(focusTarget.pos, len);
+      textInputRef.current.setSelectionRange(pos, pos);
+      onClearFocusTarget?.();
+    }
+  }, [focusTarget, block.id, onClearFocusTarget]);
 
   // Auto-resize textarea height
   useEffect(() => {
@@ -96,12 +122,36 @@ export const BlockItem: React.FC<BlockItemProps> = ({
   }, [block.type, block.content]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const target = e.currentTarget;
+    const { selectionStart, selectionEnd, value } = target;
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      onInsertAfter();
-    } else if (e.key === 'Backspace' && block.content === '') {
-      e.preventDefault();
-      onDelete();
+      if (onSplit) {
+        onSplit(selectionStart ?? value.length);
+      } else {
+        onInsertAfter();
+      }
+    } else if (e.key === 'Backspace') {
+      if (selectionStart === 0 && selectionEnd === 0) {
+        if (value === '') {
+          e.preventDefault();
+          onDelete();
+        } else if (onMergeWithPrevious) {
+          e.preventDefault();
+          onMergeWithPrevious();
+        }
+      }
+    } else if (e.key === 'ArrowUp' && selectionStart === 0 && selectionEnd === 0) {
+      if (onNavigate) {
+        e.preventDefault();
+        onNavigate('up');
+      }
+    } else if (e.key === 'ArrowDown' && selectionStart === value.length && selectionEnd === value.length) {
+      if (onNavigate) {
+        e.preventDefault();
+        onNavigate('down');
+      }
     }
   };
 
@@ -404,7 +454,13 @@ export const BlockItem: React.FC<BlockItemProps> = ({
             value={block.content}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder="Type '/' for commands..."
+            placeholder={
+              index === 0 && totalBlocks <= 1
+                ? "Start typing your note, or type '/' for commands..."
+                : index === 0
+                ? "Start typing..."
+                : ""
+            }
             style={blockTextStyle}
             className={`w-full resize-none overflow-hidden bg-transparent text-slate-800 dark:text-slate-200 focus:outline-none placeholder:text-slate-300 dark:placeholder:text-neutral-700 leading-relaxed text-base ${textAlignClass}`}
           />
