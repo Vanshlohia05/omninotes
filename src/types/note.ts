@@ -33,7 +33,19 @@ export type BlockType =
   | 'code'
   | 'timeline'
   | 'image'
-  | 'toc';
+  | 'toc'
+  | 'habit'
+  | 'kanban'
+  | 'gtd'
+  | 'okr'
+  | 'budget'
+  | 'kakeibo'
+  | 'mood-tracker'
+  | 'six-hats'
+  | 'weekly-review'
+  | 'capsule-wardrobe'
+  | 'media-tracker'
+  | 'calendar';
 
 export interface TableData {
   headers: string[];
@@ -46,6 +58,22 @@ export interface TimelineEvent {
   title: string;
   description: string;
   status: 'completed' | 'in-progress' | 'planned';
+}
+
+export interface HabitBlockData {
+  title: string;
+  category: string;
+  color: string;
+  icon: string;
+  streak: number;
+  todayCompleted: boolean;
+  completions: Record<string, boolean>;
+}
+
+export interface KanbanColumn {
+  id: string;
+  title: string;
+  cards: { id: string; title: string; tag?: string }[];
 }
 
 export interface BlockItem {
@@ -68,6 +96,9 @@ export interface BlockItem {
   align?: 'left' | 'center' | 'right';
   textColor?: string;
   bgColor?: string;
+  habitData?: HabitBlockData;
+  kanbanData?: { columns: KanbanColumn[] };
+  interactiveData?: any;
 }
 
 export type ShapeType =

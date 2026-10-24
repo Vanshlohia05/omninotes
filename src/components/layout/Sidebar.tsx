@@ -21,10 +21,18 @@ import {
   Sparkles,
   Plus,
   Layers,
-  FileText
+  FileText,
+  CheckCircle2,
+  Flame,
+  Book,
+  Users,
+  Target
 } from 'lucide-react';
 import { NoteItem, Folder } from '../../types/note';
 import { Notebook, ONENOTE_BINDER_COLORS, ONENOTE_TAB_COLORS } from '../../types/notebook';
+import { JournalBook } from '../../types/lifeos';
+
+export type AppViewMode = 'notes' | 'notebooks' | 'todo' | 'habits' | 'journal' | 'para' | 'crm';
 
 interface SidebarProps {
   notes: NoteItem[];
@@ -34,6 +42,16 @@ interface SidebarProps {
   onSidebarModeChange: (mode: 'notes' | 'notebooks') => void;
   selectedFilter: string;
   onSelectFilter: (filter: string) => void;
+  currentView?: AppViewMode;
+  onSelectView?: (view: AppViewMode) => void;
+  habitsCount?: number;
+  tasksCount?: number;
+  journals?: JournalBook[];
+  activeJournalId?: string | null;
+  onSelectJournal?: (id: string) => void;
+  onCreateJournal?: (title: string, color: string) => void;
+  paraCount?: number;
+  crmCount?: number;
   activeNotebookId?: string | null;
   onSelectNotebook?: (id: string) => void;
   onCreateFolder: (name: string, color: string) => void;
@@ -62,6 +80,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSidebarModeChange,
   selectedFilter,
   onSelectFilter,
+  currentView = 'notes',
+  onSelectView,
+  habitsCount = 0,
+  tasksCount = 0,
+  journals = [],
+  activeJournalId = null,
+  onSelectJournal,
+  onCreateJournal,
+  paraCount = 0,
+  crmCount = 0,
   activeNotebookId,
   onSelectNotebook,
   onCreateFolder,
@@ -79,6 +107,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isDriveConnected,
   onCloseMobile
 }) => {
+  const [isJournalsExpanded, setIsJournalsExpanded] = useState(true);
+  const [isCreatingJournal, setIsCreatingJournal] = useState(false);
+  const [newJournalTitle, setNewJournalTitle] = useState('');
+  const [newJournalColor, setNewJournalColor] = useState('#D97706');
+
   // Folder creation
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -222,9 +255,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Smart Filters (Apple Notes Quick Links) */}
             <div className="space-y-0.5">
               <button
-                onClick={() => onSelectFilter('all')}
+                onClick={() => {
+                  onSelectFilter('all');
+                  onSelectView?.('notes');
+                  onCloseMobile?.();
+                }}
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg font-medium transition ${
-                  selectedFilter === 'all'
+                  selectedFilter === 'all' && currentView === 'notes'
                     ? 'bg-amber-100/80 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 font-semibold'
                     : 'hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
@@ -237,9 +274,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
 
               <button
-                onClick={() => onSelectFilter('pinned')}
+                onClick={() => {
+                  onSelectFilter('pinned');
+                  onSelectView?.('notes');
+                  onCloseMobile?.();
+                }}
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg font-medium transition ${
-                  selectedFilter === 'pinned'
+                  selectedFilter === 'pinned' && currentView === 'notes'
                     ? 'bg-amber-100/80 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 font-semibold'
                     : 'hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
@@ -251,25 +292,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-[11px] text-slate-400 font-mono">{pinnedCount}</span>
               </button>
 
+              {/* To-Do List Hub (Frameworks) */}
               <button
-                onClick={() => onSelectFilter('checklists')}
+                onClick={() => {
+                  onSelectView?.('todo');
+                  onCloseMobile?.();
+                }}
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg font-medium transition ${
-                  selectedFilter === 'checklists'
-                    ? 'bg-amber-100/80 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 font-semibold'
+                  currentView === 'todo'
+                    ? 'bg-emerald-100/80 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200 font-semibold'
                     : 'hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <CheckSquare className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Checklists</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>To-Do Hub</span>
                 </div>
-                <span className="text-[11px] text-slate-400 font-mono">{checklistCount}</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono">
+                  {tasksCount}
+                </span>
+              </button>
+
+              {/* Habit Tracker (directly below To-Do list as requested) */}
+              <button
+                onClick={() => {
+                  onSelectView?.('habits');
+                  onCloseMobile?.();
+                }}
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg font-medium transition ${
+                  currentView === 'habits'
+                    ? 'bg-emerald-100/80 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200 font-semibold'
+                    : 'hover:bg-black/5 dark:hover:bg-white/5'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Flame className="w-3.5 h-3.5 text-emerald-600 fill-emerald-500/20" />
+                  <span>Habit Tracker</span>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono">
+                  {habitsCount}
+                </span>
               </button>
 
               <button
-                onClick={() => onSelectFilter('reminders')}
+                onClick={() => {
+                  onSelectFilter('reminders');
+                  onSelectView?.('notes');
+                  onCloseMobile?.();
+                }}
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg font-medium transition ${
-                  selectedFilter === 'reminders'
+                  selectedFilter === 'reminders' && currentView === 'notes'
                     ? 'bg-amber-100/80 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 font-semibold'
                     : 'hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
@@ -282,9 +354,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
 
               <button
-                onClick={() => onSelectFilter('archive')}
+                onClick={() => {
+                  onSelectFilter('archive');
+                  onSelectView?.('notes');
+                  onCloseMobile?.();
+                }}
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg font-medium transition ${
-                  selectedFilter === 'archive'
+                  selectedFilter === 'archive' && currentView === 'notes'
                     ? 'bg-amber-100/80 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 font-semibold'
                     : 'hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
@@ -297,9 +373,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
 
               <button
-                onClick={() => onSelectFilter('trash')}
+                onClick={() => {
+                  onSelectFilter('trash');
+                  onSelectView?.('notes');
+                  onCloseMobile?.();
+                }}
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg font-medium transition ${
-                  selectedFilter === 'trash'
+                  selectedFilter === 'trash' && currentView === 'notes'
                     ? 'bg-red-100/80 dark:bg-red-950/50 text-red-900 dark:text-red-200 font-semibold'
                     : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-500'
                 }`}
@@ -309,6 +389,148 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span>Recently Deleted</span>
                 </div>
                 <span className="text-[11px] text-slate-400 font-mono">{trashCount}</span>
+              </button>
+            </div>
+
+            {/* Journals Section */}
+            <div className="space-y-0.5">
+              <div className="flex items-center justify-between px-2 pb-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                <button
+                  onClick={() => setIsJournalsExpanded(!isJournalsExpanded)}
+                  className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-slate-200 transition"
+                >
+                  {isJournalsExpanded ? (
+                    <ChevronDown className="w-3 h-3" />
+                  ) : (
+                    <ChevronRight className="w-3 h-3" />
+                  )}
+                  <span>Journals</span>
+                </button>
+                <button
+                  onClick={() => setIsCreatingJournal(true)}
+                  className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 hover:text-slate-800 dark:hover:text-slate-200 transition"
+                  title="New Journal"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {isCreatingJournal && (
+                <div className="p-2 mb-2 bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-black/10 dark:border-white/10 space-y-2">
+                  <input
+                    type="text"
+                    value={newJournalTitle}
+                    onChange={(e) => setNewJournalTitle(e.target.value)}
+                    placeholder="Journal title..."
+                    autoFocus
+                    className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-neutral-900 rounded border border-black/10 dark:border-white/10 focus:outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newJournalTitle.trim()) {
+                        onCreateJournal?.(newJournalTitle.trim(), newJournalColor);
+                        setNewJournalTitle('');
+                        setIsCreatingJournal(false);
+                      }
+                      if (e.key === 'Escape') setIsCreatingJournal(false);
+                    }}
+                  />
+                  <div className="flex justify-end gap-1">
+                    <button
+                      onClick={() => setIsCreatingJournal(false)}
+                      className="px-2 py-0.5 text-[10px] text-slate-500 hover:text-slate-700"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (newJournalTitle.trim()) {
+                          onCreateJournal?.(newJournalTitle.trim(), newJournalColor);
+                          setNewJournalTitle('');
+                          setIsCreatingJournal(false);
+                        }
+                      }}
+                      className="px-2 py-0.5 text-[10px] bg-amber-600 text-white rounded font-medium"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isJournalsExpanded && (
+                <div className="space-y-0.5">
+                  {journals.map((j) => (
+                    <button
+                      key={j.id}
+                      onClick={() => {
+                        onSelectJournal?.(j.id);
+                        onSelectView?.('journal');
+                        onCloseMobile?.();
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition ${
+                        currentView === 'journal' && activeJournalId === j.id
+                          ? 'bg-amber-100/80 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 font-semibold'
+                          : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: j.coverColor || '#D97706' }}
+                        />
+                        <span className="truncate">{j.title}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {j.pages?.length || 0}p
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Second Brain (PARA Method) */}
+            <div className="space-y-0.5">
+              <button
+                onClick={() => {
+                  onSelectView?.('para');
+                  onCloseMobile?.();
+                }}
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg font-medium transition ${
+                  currentView === 'para'
+                    ? 'bg-purple-100/80 dark:bg-purple-950/50 text-purple-900 dark:text-purple-200 font-semibold'
+                    : 'hover:bg-black/5 dark:hover:bg-white/5'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Layers className="w-3.5 h-3.5 text-purple-600" />
+                  <span>PARA Vault</span>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-mono">
+                  {paraCount}
+                </span>
+              </button>
+            </div>
+
+            {/* Personal CRM */}
+            <div className="space-y-0.5">
+              <button
+                onClick={() => {
+                  onSelectView?.('crm');
+                  onCloseMobile?.();
+                }}
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg font-medium transition ${
+                  currentView === 'crm'
+                    ? 'bg-rose-100/80 dark:bg-rose-950/50 text-rose-900 dark:text-rose-200 font-semibold'
+                    : 'hover:bg-black/5 dark:hover:bg-white/5'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Personal CRM</span>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 font-mono">
+                  {crmCount}
+                </span>
               </button>
             </div>
 

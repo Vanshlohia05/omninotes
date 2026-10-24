@@ -1,19 +1,40 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { NoteItem, Folder, GDriveConfig, BlockItem as BlockItemType, CanvasElement } from './types/note';
 import { Notebook, NotebookUnit, NotebookChapter } from './types/notebook';
+import {
+  HabitItem,
+  TaskItem,
+  JournalBook,
+  ParaItem,
+  CrmContact
+} from './types/lifeos';
 import { dbService } from './services/indexedDb';
-import { INITIAL_NOTES, INITIAL_FOLDERS, INITIAL_NOTEBOOKS } from './services/sampleData';
+import {
+  INITIAL_NOTES,
+  INITIAL_FOLDERS,
+  INITIAL_NOTEBOOKS,
+  INITIAL_HABITS,
+  INITIAL_TASKS,
+  INITIAL_JOURNALS,
+  INITIAL_PARA_ITEMS,
+  INITIAL_CRM_CONTACTS
+} from './services/sampleData';
 import { gdriveService } from './services/gdrive';
 import { notificationService } from './services/notificationService';
 import { MCPServerEngine } from './services/mcpServer';
 import { ApiServer } from './services/apiServer';
-import { Sidebar } from './components/layout/Sidebar';
+import { Sidebar, AppViewMode } from './components/layout/Sidebar';
 import { NotesList } from './components/layout/NotesList';
 import { NoteHeader } from './components/layout/NoteHeader';
 import { BlockEditor } from './components/editor/BlockEditor';
 import { InfiniteCanvas } from './components/canvas/InfiniteCanvas';
 import { TimelineView } from './components/timeline/TimelineView';
 import { OneNoteWorkspace } from './components/onenote/OneNoteWorkspace';
+import { HabitTrackerView } from './components/habits/HabitTrackerView';
+import { JournalView } from './components/journal/JournalView';
+import { TodoHubView } from './components/todo/TodoHubView';
+import { ParaVaultView } from './components/para/ParaVaultView';
+import { PersonalCRMView } from './components/crm/PersonalCRMView';
 import { SettingsModal } from './components/layout/SettingsModal';
 import { ReminderModal } from './components/common/ReminderModal';
 import { MCPModal } from './components/mcp/MCPModal';
@@ -26,6 +47,13 @@ export function App() {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [appView, setAppView] = useState<AppViewMode>('notes');
+  const [habits, setHabits] = useState<HabitItem[]>(INITIAL_HABITS);
+  const [tasks, setTasks] = useState<TaskItem[]>(INITIAL_TASKS);
+  const [journals, setJournals] = useState<JournalBook[]>(INITIAL_JOURNALS);
+  const [paraItems, setParaItems] = useState<ParaItem[]>(INITIAL_PARA_ITEMS);
+  const [crmContacts, setCrmContacts] = useState<CrmContact[]>(INITIAL_CRM_CONTACTS);
+  const [activeJournalId, setActiveJournalId] = useState<string | null>('journal-personal');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [mobileView, setMobileView] = useState<'list' | 'note'>('list');
@@ -76,6 +104,49 @@ export function App() {
         setNotebooks(storedNotebooks);
         if (storedNotebooks.length > 0) {
           setActiveNotebookId(storedNotebooks[0].id);
+        }
+
+        // Initialize Life OS Stores
+        const storedHabits = await dbService.getAllHabits();
+        if (storedHabits.length === 0) {
+          await dbService.saveHabits(INITIAL_HABITS);
+          setHabits(INITIAL_HABITS);
+        } else {
+          setHabits(storedHabits);
+        }
+
+        const storedTasks = await dbService.getAllTasks();
+        if (storedTasks.length === 0) {
+          await dbService.saveTasks(INITIAL_TASKS);
+          setTasks(INITIAL_TASKS);
+        } else {
+          setTasks(storedTasks);
+        }
+
+        const storedJournals = await dbService.getAllJournals();
+        if (storedJournals.length === 0) {
+          await dbService.saveJournals(INITIAL_JOURNALS);
+          setJournals(INITIAL_JOURNALS);
+          setActiveJournalId(INITIAL_JOURNALS[0]?.id || null);
+        } else {
+          setJournals(storedJournals);
+          setActiveJournalId(storedJournals[0]?.id || null);
+        }
+
+        const storedPara = await dbService.getAllParaItems();
+        if (storedPara.length === 0) {
+          await dbService.saveParaItems(INITIAL_PARA_ITEMS);
+          setParaItems(INITIAL_PARA_ITEMS);
+        } else {
+          setParaItems(storedPara);
+        }
+
+        const storedCrm = await dbService.getAllCrmContacts();
+        if (storedCrm.length === 0) {
+          await dbService.saveCrmContacts(INITIAL_CRM_CONTACTS);
+          setCrmContacts(INITIAL_CRM_CONTACTS);
+        } else {
+          setCrmContacts(storedCrm);
         }
 
         if (storedNotes.length === 0 && storedFolders.length === 0) {
@@ -438,6 +509,98 @@ export function App() {
     return childNote.id;
   };
 
+  // Life OS Handlers
+  const handleSaveHabit = async (habit: HabitItem) => {
+    setHabits((prev) => {
+      const exists = prev.some((h) => h.id === habit.id);
+      return exists ? prev.map((h) => (h.id === habit.id ? habit : h)) : [habit, ...prev];
+    });
+    await dbService.saveHabit(habit);
+  };
+
+  const handleDeleteHabit = async (id: string) => {
+    setHabits((prev) => prev.filter((h) => h.id !== id));
+    await dbService.deleteHabit(id);
+  };
+
+  const handleSaveTask = async (task: TaskItem) => {
+    setTasks((prev) => {
+      const exists = prev.some((t) => t.id === task.id);
+      return exists ? prev.map((t) => (t.id === task.id ? task : t)) : [task, ...prev];
+    });
+    await dbService.saveTask(task);
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+    await dbService.deleteTask(id);
+  };
+
+  const handleSaveJournal = async (journal: JournalBook) => {
+    setJournals((prev) => prev.map((j) => (j.id === journal.id ? journal : j)));
+    await dbService.saveJournal(journal);
+  };
+
+  const handleCreateJournal = async (title: string, coverColor: string) => {
+    const newJournal: JournalBook = {
+      id: `journal-${Date.now()}`,
+      title,
+      coverColor,
+      defaultRuling: 'ruled',
+      category: 'Personal',
+      activePageNumber: 1,
+      viewMode: 'book',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      pages: [
+        {
+          id: `page-${Date.now()}-1`,
+          journalId: `journal-${Date.now()}`,
+          pageNumber: 1,
+          title: 'Table of Contents',
+          date: new Date().toISOString().split('T')[0],
+          paperRuling: 'ruled',
+          blocks: [
+            { id: `b-${Date.now()}-1`, type: 'h1', content: `${title} — Table of Contents` },
+            { id: `b-${Date.now()}-2`, type: 'paragraph', content: 'Index of all entries in this journal.' }
+          ],
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        }
+      ]
+    };
+    setJournals((prev) => [newJournal, ...prev]);
+    setActiveJournalId(newJournal.id);
+    setAppView('journal');
+    await dbService.saveJournal(newJournal);
+  };
+
+  const handleSaveParaItem = async (item: ParaItem) => {
+    setParaItems((prev) => {
+      const exists = prev.some((p) => p.id === item.id);
+      return exists ? prev.map((p) => (p.id === item.id ? item : p)) : [item, ...prev];
+    });
+    await dbService.saveParaItem(item);
+  };
+
+  const handleDeleteParaItem = async (id: string) => {
+    setParaItems((prev) => prev.filter((p) => p.id !== id));
+    await dbService.deleteParaItem(id);
+  };
+
+  const handleSaveCrmContact = async (contact: CrmContact) => {
+    setCrmContacts((prev) => {
+      const exists = prev.some((c) => c.id === contact.id);
+      return exists ? prev.map((c) => (c.id === contact.id ? contact : c)) : [contact, ...prev];
+    });
+    await dbService.saveCrmContact(contact);
+  };
+
+  const handleDeleteCrmContact = async (id: string) => {
+    setCrmContacts((prev) => prev.filter((c) => c.id !== id));
+    await dbService.deleteCrmContact(id);
+  };
+
   // Microsoft OneNote Notebooks Handlers
   const handleCreateNotebook = (name: string, color: string) => {
     const newNb: Notebook = {
@@ -629,18 +792,40 @@ export function App() {
           folders={folders}
           notebooks={notebooks}
           sidebarMode={sidebarMode}
-          onSidebarModeChange={setSidebarMode}
+          onSidebarModeChange={(mode) => {
+            setSidebarMode(mode);
+            setAppView(mode);
+          }}
           selectedFilter={selectedFilter}
           onSelectFilter={(f) => {
             setSelectedFilter(f);
             setSidebarMode('notes');
+            setAppView('notes');
             setIsSidebarOpenMobile(false);
             setMobileView('list');
           }}
+          currentView={appView}
+          onSelectView={(v) => {
+            setAppView(v);
+            if (v === 'notebooks') setSidebarMode('notebooks');
+            else setSidebarMode('notes');
+          }}
+          habitsCount={habits.length}
+          tasksCount={tasks.filter((t) => !t.completed).length}
+          journals={journals}
+          activeJournalId={activeJournalId}
+          onSelectJournal={(id) => {
+            setActiveJournalId(id);
+            setAppView('journal');
+          }}
+          onCreateJournal={handleCreateJournal}
+          paraCount={paraItems.length}
+          crmCount={crmContacts.length}
           activeNotebookId={activeNotebookId}
           onSelectNotebook={(id) => {
             setActiveNotebookId(id);
             setSidebarMode('notebooks');
+            setAppView('notebooks');
             setIsSidebarOpenMobile(false);
           }}
           onCreateFolder={handleCreateFolder}
@@ -653,6 +838,7 @@ export function App() {
             setActiveNotebookId(nbId);
             setActiveChapterId(chapId);
             setSidebarMode('notebooks');
+            setAppView('notebooks');
             setIsSidebarOpenMobile(false);
           }}
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -666,7 +852,7 @@ export function App() {
       </div>
 
       {/* Main Content Area */}
-      {sidebarMode === 'notebooks' ? (
+      {sidebarMode === 'notebooks' || appView === 'notebooks' ? (
         <div className="flex-1 flex h-full overflow-hidden">
           {activeNotebook ? (
             <OneNoteWorkspace
@@ -690,7 +876,10 @@ export function App() {
               onCreateChapter={handleCreateChapter}
               onDeleteChapter={handleDeleteChapter}
               onCreateUnit={handleCreateUnit}
-              onBackToNotesList={() => setSidebarMode('notes')}
+              onBackToNotesList={() => {
+                setSidebarMode('notes');
+                setAppView('notes');
+              }}
               onOpenSidebar={() => setIsSidebarOpenMobile(true)}
               onCreateSubpage={handleCreateSubpage}
               onInlineTagsFound={handleInlineTagsFound}
@@ -711,6 +900,54 @@ export function App() {
             </div>
           )}
         </div>
+      ) : appView === 'todo' ? (
+        <TodoHubView
+          tasks={tasks}
+          onSaveTask={handleSaveTask}
+          onDeleteTask={handleDeleteTask}
+          onBackToNotes={() => setAppView('notes')}
+          onOpenSidebar={() => setIsSidebarOpenMobile(true)}
+        />
+      ) : appView === 'habits' ? (
+        <HabitTrackerView
+          habits={habits}
+          onSaveHabit={handleSaveHabit}
+          onDeleteHabit={handleDeleteHabit}
+          onBackToNotes={() => setAppView('notes')}
+          onOpenSidebar={() => setIsSidebarOpenMobile(true)}
+        />
+      ) : appView === 'journal' ? (
+        <JournalView
+          journal={journals.find((j) => j.id === activeJournalId) || journals[0]}
+          allJournals={journals}
+          onSelectJournal={(id) => setActiveJournalId(id)}
+          onUpdateJournal={handleSaveJournal}
+          onBackToNotes={() => setAppView('notes')}
+          onOpenSidebar={() => setIsSidebarOpenMobile(true)}
+        />
+      ) : appView === 'para' ? (
+        <ParaVaultView
+          items={paraItems}
+          allNotes={notes}
+          onSelectItem={() => {}}
+          onSaveItem={handleSaveParaItem}
+          onDeleteItem={handleDeleteParaItem}
+          onOpenNote={(noteId) => {
+            setActiveNoteId(noteId);
+            setAppView('notes');
+            setMobileView('note');
+          }}
+          onBackToNotes={() => setAppView('notes')}
+          onOpenSidebar={() => setIsSidebarOpenMobile(true)}
+        />
+      ) : appView === 'crm' ? (
+        <PersonalCRMView
+          contacts={crmContacts}
+          onSaveContact={handleSaveCrmContact}
+          onDeleteContact={handleDeleteCrmContact}
+          onBackToNotes={() => setAppView('notes')}
+          onOpenSidebar={() => setIsSidebarOpenMobile(true)}
+        />
       ) : (
         <>
           {/* Pane 2: Middle Notes List */}

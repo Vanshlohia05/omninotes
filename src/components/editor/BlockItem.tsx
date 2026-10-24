@@ -24,6 +24,15 @@ import katex from 'katex';
 import { BlockItem as BlockItemType, NoteItem, TableData, TimelineEvent } from '../../types/note';
 import { TableBlock } from './TableBlock';
 import { TimelineBlock } from './TimelineBlock';
+import { HabitBlock } from '../slash-blocks/HabitBlock';
+import {
+  KanbanBlock,
+  GTDBlock,
+  OKRBlock,
+  BudgetBlock,
+  MoodTrackerBlock,
+  SixHatsBlock
+} from '../slash-blocks/InteractiveFrameworkBlocks';
 
 interface BlockItemProps {
   block: BlockItemType;
@@ -614,6 +623,15 @@ export const BlockItem: React.FC<BlockItemProps> = ({
             onChange={(events: TimelineEvent[]) => onUpdate({ ...block, timelineEvents: events })}
           />
         )}
+
+        {/* Life OS Slash Blocks */}
+        {block.type === 'habit' && <HabitBlock block={block} onUpdate={onUpdate} />}
+        {block.type === 'kanban' && <KanbanBlock block={block} onUpdate={onUpdate} />}
+        {block.type === 'gtd' && <GTDBlock block={block} onUpdate={onUpdate} />}
+        {block.type === 'okr' && <OKRBlock block={block} onUpdate={onUpdate} />}
+        {block.type === 'budget' && <BudgetBlock block={block} onUpdate={onUpdate} />}
+        {block.type === 'mood-tracker' && <MoodTrackerBlock block={block} onUpdate={onUpdate} />}
+        {block.type === 'six-hats' && <SixHatsBlock block={block} onUpdate={onUpdate} />}
 
         {/* Divider Block */}
         {block.type === 'divider' && (

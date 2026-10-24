@@ -52,7 +52,17 @@ export const SLASH_COMMANDS: SlashMenuItem[] = [
   { type: 'equation', title: 'Math Equation', description: 'KaTeX LaTeX mathematical formula', icon: <Sigma className="w-4 h-4 text-red-500" /> },
   { type: 'code', title: 'Code Block', description: 'Syntax-highlighted code snippet', icon: <Code className="w-4 h-4 text-emerald-600" /> },
   { type: 'divider', title: 'Divider', description: 'Visually divide sections', icon: <Minus className="w-4 h-4 text-slate-400" /> },
-  { type: 'subpage', title: 'Sub-page', description: 'Embed a child page inside this page', icon: <FileText className="w-4 h-4 text-indigo-500" /> }
+  { type: 'subpage', title: 'Sub-page', description: 'Embed a child page inside this page', icon: <FileText className="w-4 h-4 text-indigo-500" /> },
+  { type: 'habit', title: 'Habit Tracker', description: 'Daily habit goal with streak & 7-day completion dots', icon: <span className="text-sm">🧘</span> },
+  { type: 'kanban', title: 'Kanban Board', description: 'Interactive visual workflow columns (To Do, Doing, Done)', icon: <span className="text-sm">📋</span> },
+  { type: 'gtd', title: 'GTD Framework', description: 'Getting Things Done 5-step workflow container', icon: <span className="text-sm">⚡</span> },
+  { type: 'okr', title: 'OKR Goal Tracker', description: 'Objective with trackable Key Results progress bars', icon: <span className="text-sm">🎯</span> },
+  { type: 'budget', title: 'Zero-Based Budget / Kakeibo', description: 'Mindful budgeting ledger (Needs, Wants, Savings)', icon: <span className="text-sm">💰</span> },
+  { type: 'mood-tracker', title: 'Mood & Readiness Log', description: 'Track daily energy, mood, sleep and focus state', icon: <span className="text-sm">🌱</span> },
+  { type: 'six-hats', title: 'Six Thinking Hats', description: "Edward de Bono's parallel decision perspective model", icon: <span className="text-sm">🎩</span> },
+  { type: 'weekly-review', title: 'Weekly Review', description: 'End-of-week retrospective, wins and upcoming priorities', icon: <span className="text-sm">🔄</span> },
+  { type: 'media-tracker', title: 'Reading & Media Tracker', description: 'Books read, podcasts, ratings and key takeaways', icon: <span className="text-sm">📚</span> },
+  { type: 'calendar', title: 'Calendar Date Block', description: 'Date-stamped time-blocked note section', icon: <Calendar className="w-4 h-4 text-amber-600" /> }
 ];
 
 interface SlashMenuProps {

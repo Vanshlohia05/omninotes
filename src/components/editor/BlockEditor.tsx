@@ -216,6 +216,28 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
       updated.url = 'https://en.wikipedia.org/wiki/Main_Page';
     }
 
+    if (type === 'habit') {
+      updated.habitData = {
+        title: 'Daily Habit Goal',
+        category: 'Routine',
+        color: '#10B981',
+        icon: '✨',
+        streak: 0,
+        todayCompleted: false,
+        completions: {}
+      };
+    }
+
+    if (type === 'kanban') {
+      updated.kanbanData = {
+        columns: [
+          { id: 'todo', title: 'To Do', cards: [{ id: 'c1', title: 'Research & outline' }] },
+          { id: 'doing', title: 'In Progress', cards: [{ id: 'c2', title: 'Draft implementation' }] },
+          { id: 'done', title: 'Done', cards: [{ id: 'c3', title: 'Milestone kickoff' }] }
+        ]
+      };
+    }
+
     handleUpdateBlock(blockIndex, updated);
     setSlashMenuState((prev) => ({ ...prev, isOpen: false }));
   };
