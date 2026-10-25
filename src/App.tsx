@@ -19,6 +19,7 @@ import {
   INITIAL_PARA_ITEMS,
   INITIAL_CRM_CONTACTS
 } from './services/sampleData';
+import { MASTER_GUIDE_NOTE } from './services/masterGuideData';
 import { gdriveService } from './services/gdrive';
 import { notificationService } from './services/notificationService';
 import { MCPServerEngine } from './services/mcpServer';
@@ -160,12 +161,17 @@ export function App() {
           setActiveNoteId(INITIAL_NOTES[0].id);
           setOpenTabs([INITIAL_NOTES[0].id, INITIAL_NOTES[1].id]);
         } else {
-          setNotes(storedNotes);
+          let resolvedNotes = storedNotes;
+          if (!resolvedNotes.some((n) => n.id === 'note-master-guide')) {
+            await dbService.saveNote(MASTER_GUIDE_NOTE);
+            resolvedNotes = [MASTER_GUIDE_NOTE, ...resolvedNotes];
+          }
+          setNotes(resolvedNotes);
           setFolders(storedFolders);
-          const firstNonDeleted = storedNotes.find((n) => !n.isDeleted) || storedNotes[0];
-          if (firstNonDeleted) {
-            setActiveNoteId(firstNonDeleted.id);
-            setOpenTabs([firstNonDeleted.id]);
+          const guideOrFirst = resolvedNotes.find((n) => n.id === 'note-master-guide') || resolvedNotes.find((n) => !n.isDeleted) || resolvedNotes[0];
+          if (guideOrFirst) {
+            setActiveNoteId(guideOrFirst.id);
+            setOpenTabs([guideOrFirst.id]);
           }
         }
       } catch (err) {
@@ -468,6 +474,16 @@ export function App() {
     }
     dbService.saveSetting('darkMode', next);
   };
+
+  const handleSelectMasterGuide = useCallback(() => {
+    setSelectedFilter('all');
+    setSidebarMode('notes');
+    setAppView('notes');
+    setActiveNoteId('note-master-guide');
+    setOpenTabs((prev) => (prev.includes('note-master-guide') ? prev : ['note-master-guide', ...prev]));
+    setIsSidebarOpenMobile(false);
+    setMobileView('note');
+  }, []);
 
   // Google Drive Manual Sync trigger
   const handleSyncDrive = async () => {
@@ -848,6 +864,7 @@ export function App() {
           onToggleDarkMode={handleToggleDarkMode}
           isDriveConnected={gdriveConfig.isAuthorized}
           onCloseMobile={() => setIsSidebarOpenMobile(false)}
+          onSelectMasterGuide={handleSelectMasterGuide}
         />
       </div>
 

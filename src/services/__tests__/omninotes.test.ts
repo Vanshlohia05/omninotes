@@ -48,7 +48,7 @@ describe('OmniNotes Model Context Protocol (MCP) Engine', () => {
   it('searches notes by query text and tags', async () => {
     const res = await mcpEngine.executeTool('search_notes', { query: 'welcome' });
     expect(res.count).toBeGreaterThan(0);
-    expect(res.notes[0].title).toContain('Welcome');
+    expect(res.notes.some((n: any) => n.title.includes('Welcome'))).toBe(true);
 
     const tagRes = await mcpEngine.executeTool('search_notes', { tag: 'canvas' });
     expect(tagRes.count).toBe(1);
@@ -151,7 +151,7 @@ describe('Notion Blocks, Timeline & Inline Tagging', () => {
   });
 
   it('serializes and validates timeline block milestones', () => {
-    const welcomeNote = INITIAL_NOTES[0];
+    const welcomeNote = INITIAL_NOTES.find((n) => n.id === 'note-welcome')!;
     const timelineBlock = welcomeNote.blocks.find((b) => b.type === 'timeline');
     expect(timelineBlock).toBeDefined();
     expect(timelineBlock?.timelineEvents?.length).toBeGreaterThanOrEqual(3);
@@ -162,7 +162,7 @@ describe('Notion Blocks, Timeline & Inline Tagging', () => {
   });
 
   it('resolves link-to-page internal document reference', () => {
-    const welcomeNote = INITIAL_NOTES[0];
+    const welcomeNote = INITIAL_NOTES.find((n) => n.id === 'note-welcome')!;
     const linkBlock = welcomeNote.blocks.find((b) => b.type === 'link-to-page');
     expect(linkBlock).toBeDefined();
     expect(linkBlock?.linkedNoteId).toBe('note-mindmap');
@@ -189,8 +189,9 @@ describe('Recently Deleted 30-Day Auto Purge Logic', () => {
   });
 
   it('restores deleted note back to active collection with deleted flag cleared', () => {
+    const welcomeNote = INITIAL_NOTES.find((n) => n.id === 'note-welcome')!;
     const note: NoteItem = {
-      ...INITIAL_NOTES[0],
+      ...welcomeNote,
       isDeleted: true,
       deletedAt: Date.now() - 86400000 * 5
     };
@@ -209,7 +210,8 @@ describe('Recently Deleted 30-Day Auto Purge Logic', () => {
 
 describe('Infinite Canvas Copy-Paste Logic', () => {
   it('correctly duplicates canvas element with coordinate offset and unique ID', () => {
-    const original = INITIAL_NOTES[1].canvasElements[0];
+    const canvasNote = INITIAL_NOTES.find((n) => n.id === 'note-mindmap')!;
+    const original = canvasNote.canvasElements[0];
     const cloned = {
       ...original,
       id: `${original.type}-${Date.now()}`,

@@ -1,5 +1,6 @@
 import { Folder, NoteItem } from '../types/note';
 import { HabitItem, TaskItem, JournalBook, ParaItem, CrmContact } from '../types/lifeos';
+import { MASTER_GUIDE_NOTE } from './masterGuideData';
 
 export const INITIAL_FOLDERS: Folder[] = [
   {
@@ -23,6 +24,7 @@ export const INITIAL_FOLDERS: Folder[] = [
 ];
 
 export const INITIAL_NOTES: NoteItem[] = [
+  MASTER_GUIDE_NOTE,
   {
     id: 'note-welcome',
     title: 'Welcome to OmniNotes ✨',

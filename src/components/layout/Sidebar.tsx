@@ -68,6 +68,7 @@ interface SidebarProps {
   onToggleDarkMode: () => void;
   isDriveConnected: boolean;
   onCloseMobile?: () => void;
+  onSelectMasterGuide?: () => void;
 }
 
 const FOLDER_COLORS = ['#E5A93C', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899', '#EF4444', '#64748B'];
@@ -105,7 +106,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isDarkMode,
   onToggleDarkMode,
   isDriveConnected,
-  onCloseMobile
+  onCloseMobile,
+  onSelectMasterGuide
 }) => {
   const [isJournalsExpanded, setIsJournalsExpanded] = useState(true);
   const [isCreatingJournal, setIsCreatingJournal] = useState(false);
@@ -254,6 +256,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <>
             {/* Smart Filters (Apple Notes Quick Links) */}
             <div className="space-y-0.5">
+              {onSelectMasterGuide && (
+                <button
+                  onClick={() => {
+                    onSelectMasterGuide();
+                    onCloseMobile?.();
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 mb-1 rounded-lg font-medium transition bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/15 hover:from-amber-500/20 hover:to-amber-500/25 text-amber-900 dark:text-amber-200 border border-amber-500/20 shadow-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-500/30" />
+                    <span className="font-semibold text-xs">🌟 Master Guide & Tours</span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500 text-white font-bold tracking-wider uppercase">
+                    Tour
+                  </span>
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   onSelectFilter('all');
