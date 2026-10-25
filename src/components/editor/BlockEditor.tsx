@@ -12,6 +12,7 @@ interface BlockEditorProps {
   onNavigateSubpage?: (subpageId: string) => void;
   onCreateSubpage?: (title: string) => string;
   onInlineTagsFound?: (tags: string[]) => void;
+  fullWidth?: boolean;
 }
 
 export const BlockEditor: React.FC<BlockEditorProps> = ({
@@ -20,7 +21,8 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
   onChange,
   onNavigateSubpage,
   onCreateSubpage,
-  onInlineTagsFound
+  onInlineTagsFound,
+  fullWidth = false
 }) => {
   const [slashMenuState, setSlashMenuState] = useState<{
     isOpen: boolean;
@@ -268,7 +270,11 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({
     <div
       onClick={handleContainerClick}
       onTouchEnd={handleContainerClick}
-      className="relative max-w-4xl mx-auto py-6 px-4 sm:px-8 space-y-1 min-h-[calc(100vh-140px)] cursor-text touch-manipulation"
+      className={`relative w-full py-6 transition-all duration-150 cursor-text touch-manipulation ${
+        fullWidth
+          ? 'max-w-none px-2 sm:px-6 space-y-1'
+          : 'max-w-4xl mx-auto px-4 sm:px-8 space-y-1'
+      } min-h-[calc(100vh-140px)]`}
     >
       {/* Table of Contents if note has headings */}
       {blocks.some((b) => ['h1', 'h2', 'h3'].includes(b.type)) && (

@@ -124,6 +124,9 @@ export const OneNoteWorkspace: React.FC<OneNoteWorkspaceProps> = ({
   // Page List collapsed state for full-width canvas
   const [isPageListOpen, setIsPageListOpen] = useState(true);
 
+  // Expansive Full-Width Notebook Canvas mode (OneNote boundless typing space)
+  const [isWideCanvas, setIsWideCanvas] = useState<boolean>(true);
+
   // Get pages belonging to active chapter
   const chapterPages = useMemo(() => {
     if (!activeChapter) return [];
@@ -429,8 +432,8 @@ export const OneNoteWorkspace: React.FC<OneNoteWorkspaceProps> = ({
 
       {/* 3. ONENOTE RIBBON & TOOLBAR */}
       <div className="bg-[#FAF9F8] dark:bg-[#1E1E1E] px-4 py-1.5 border-b border-black/5 dark:border-white/5 flex items-center justify-between text-xs shrink-0">
-        {/* Left: View Mode Toggle (Type vs Draw vs Both) */}
-        <div className="flex items-center gap-1">
+        {/* Left: View Mode Toggle (Type vs Draw vs Both) & Navigation toggles */}
+        <div className="flex items-center gap-2">
           {activeNote && (
             <div className="flex bg-black/5 dark:bg-white/5 p-0.5 rounded-lg">
               <button
@@ -468,10 +471,38 @@ export const OneNoteWorkspace: React.FC<OneNoteWorkspaceProps> = ({
               </button>
             </div>
           )}
+
+          {/* Page List toggle button for maximum typing space */}
+          <button
+            onClick={() => setIsPageListOpen(!isPageListOpen)}
+            className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition ${
+              !isPageListOpen
+                ? 'bg-purple-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'
+            }`}
+            title={isPageListOpen ? 'Collapse Page List for Full Screen Canvas' : 'Show Page List'}
+          >
+            <Columns className="w-3.5 h-3.5" />
+            <span>{isPageListOpen ? 'Hide Pages' : 'Show Pages'}</span>
+          </button>
         </div>
 
-        {/* Right: Paper Rulings & Page Tint */}
+        {/* Right: Canvas Width, Paper Rulings & Page Tint */}
         <div className="flex items-center gap-2">
+          {/* Canvas Width: Full Width (Expansive OneNote) vs Centered (Standard) */}
+          <button
+            onClick={() => setIsWideCanvas(!isWideCanvas)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+              isWideCanvas
+                ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'
+            }`}
+            title={isWideCanvas ? 'Switch to Centered Column (Standard)' : 'Switch to Expansive Full Width (OneNote boundless)'}
+          >
+            {isWideCanvas ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{isWideCanvas ? 'Full Width' : 'Standard'}</span>
+          </button>
+
           {/* Paper style picker */}
           <div className="flex items-center bg-black/5 dark:bg-white/5 p-0.5 rounded-lg">
             <button
@@ -616,9 +647,15 @@ export const OneNoteWorkspace: React.FC<OneNoteWorkspaceProps> = ({
           }`}
         >
           {activeNote ? (
-            <div className="max-w-4xl mx-auto w-full px-4 sm:px-12 py-6 sm:py-8 flex flex-col flex-1">
+            <div
+              className={`w-full py-6 sm:py-8 flex flex-col flex-1 transition-all duration-200 ${
+                isWideCanvas
+                  ? 'max-w-none px-6 sm:px-12 lg:px-16'
+                  : 'max-w-4xl mx-auto px-4 sm:px-8'
+              }`}
+            >
               {/* Signature Microsoft OneNote Page Header */}
-              <div className="mb-6 pb-2 border-b border-slate-300 dark:border-neutral-700">
+              <div className="mb-6 pb-2 border-b border-slate-300 dark:border-neutral-700 w-full">
                 <input
                   type="text"
                   value={activeNote.title}
@@ -632,11 +669,12 @@ export const OneNoteWorkspace: React.FC<OneNoteWorkspaceProps> = ({
               </div>
 
               {/* View Modes */}
-              <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col w-full">
                 {activeNote.viewMode === 'document' && (
                   <BlockEditor
                     note={activeNote}
                     allNotes={notes}
+                    fullWidth={isWideCanvas}
                     onChange={(blocks: BlockItemType[]) =>
                       onUpdateNote({ ...activeNote, blocks })
                     }
@@ -650,7 +688,7 @@ export const OneNoteWorkspace: React.FC<OneNoteWorkspaceProps> = ({
                 )}
 
                 {activeNote.viewMode === 'canvas' && (
-                  <div className="w-full h-[650px] relative rounded-xl border border-black/10 dark:border-white/10 overflow-hidden shadow-xs">
+                  <div className="w-full h-[750px] relative rounded-xl border border-black/10 dark:border-white/10 overflow-hidden shadow-xs">
                     <InfiniteCanvas
                       note={activeNote}
                       onChange={(canvasElements: CanvasElement[]) =>
@@ -661,11 +699,12 @@ export const OneNoteWorkspace: React.FC<OneNoteWorkspaceProps> = ({
                 )}
 
                 {activeNote.viewMode === 'both' && (
-                  <div className="flex flex-col lg:flex-row h-full min-h-[600px] w-full divide-y lg:divide-y-0 lg:divide-x divide-black/10 dark:divide-white/10">
+                  <div className="flex flex-col lg:flex-row h-full min-h-[650px] w-full divide-y lg:divide-y-0 lg:divide-x divide-black/10 dark:divide-white/10">
                     <div className="w-full lg:w-1/2 overflow-y-auto">
                       <BlockEditor
                         note={activeNote}
                         allNotes={notes}
+                        fullWidth={true}
                         onChange={(blocks: BlockItemType[]) =>
                           onUpdateNote({ ...activeNote, blocks })
                         }
@@ -677,7 +716,7 @@ export const OneNoteWorkspace: React.FC<OneNoteWorkspaceProps> = ({
                         onInlineTagsFound={onInlineTagsFound}
                       />
                     </div>
-                    <div className="w-full lg:w-1/2 relative min-h-[400px]">
+                    <div className="w-full lg:w-1/2 relative min-h-[450px]">
                       <InfiniteCanvas
                         note={activeNote}
                         onChange={(canvasElements: CanvasElement[]) =>
